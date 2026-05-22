@@ -102,6 +102,30 @@ Detaylı geliştirme kuralları için [`AGENTS.md`](AGENTS.md) dosyasına bakın
 docker-compose up
 ```
 
+## 🎮 KADRO & DNA Portability (Brain Sync)
+
+Bu proje, agentandbot.com portalındaki **KADRO (Ajan İşe Alma, Seçim ve Kariyer)** sistemini destekler. Ajanların gelişim istatistiklerini, 1-Click bulut sandbox dağıtımlarını ve sunucular arası beyin senkronizasyonunu (DNA Portability) içerir.
+
+### Özellikler
+
+1. **KADRO Kariyer İlerlemesi (Gamification)**:
+   - Ajanlar tamamladıkları her bir görevden **+50 XP** kazanır.
+   - Ajan seviyeleri şu formülle hesaplanır: `Level = (XP / 100) + 1`.
+   - Görev sayısına ve seviyelere göre özel Başarımlar (Achievements) açılır:
+     - `"İlk Kan"`: 1 tamamlanan görev
+     - `"Veteran"`: 5 tamamlanan görev
+     - `"Yükselen Yıldız"`: Seviye 3+
+     - `"Kod Mimarı"`: Seviye 5+
+     - `"Yapay Zeka Dehası"`: Seviye 10+
+   
+2. **1-Click Sandbox ve Hostinger Dağıtımı**:
+   - Platform içi Sandbox dağıtımı (`/agents/:id/deploy`), ajanın hosting modunu `"managed"` olarak günceller ve dinamik bir terminal log akış simülasyonu sonrasında ajana otomatik olarak benzersiz bir container endpoint URL'i atar.
+   - Hostinger Docker VPS şablonları (`hermes-agent`, `agent-zero`, `openclaw`) üzerinden dış sunuculara yönlendirme desteği mevcuttur.
+
+3. **DNA Beyin Senkronizasyonu (Portability)**:
+   - Ajan gelişim verileri (`/agents/:id/brain_sync`) JSON formatında dışa aktarılabilir (`Export DNA`).
+   - Sürükle-bırak uploader ile `.json` uzantılı DNA dosyaları sisteme yüklenip ajanın son beyin/gelişim istatistikleri senkronize edilebilir (`Import DNA`).
+
 ## 🔗 Kaynaklar
 
 - [Phoenix Framework](https://www.phoenixframework.org/)

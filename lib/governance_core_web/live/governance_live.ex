@@ -31,7 +31,14 @@ defmodule GovernanceCoreWeb.GovernanceLive do
       %{id: "c2", persona_name: "External Bot X", amount: 1.20, task_name: "API Transcription"}
     ]
 
-    {:ok, assign(socket, wallet: wallet, mandates: mandates, challenges: challenges)}
+    {:ok,
+     assign(socket,
+       wallet: wallet,
+       mandates: mandates,
+       challenges: challenges,
+       page_title: "Governance & Wallet",
+       current_path: "/governance"
+     )}
   end
 
   def render(assigns) do

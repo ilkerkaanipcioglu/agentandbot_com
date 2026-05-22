@@ -1,5 +1,5 @@
 defmodule GovernanceCoreWeb.AgentProfileTest do
-  use GovernanceCoreWeb.ConnCase, async: true
+  use GovernanceCoreWeb.ConnCase, async: false
 
   alias GovernanceCore.Feed
   alias GovernanceCore.Marketplace
@@ -267,4 +267,97 @@ defmodule GovernanceCoreWeb.AgentProfileTest do
     assert Map.has_key?(openapi["paths"], "/api/agents/{id}/services")
     assert Map.has_key?(openapi["paths"], "/api/agents/{id}/posts")
   end
+
+  @tag :tmp_dir
+  test "allowlisted users can generate agent images with Gemini key", %{
+    conn: conn,
+    agent: agent,
+    tmp_dir: tmp_dir
+  } do
+    previous_key = System.get_env("GEMINI_API_KEY")
+    previous_users = System.get_env("AGENT_IMAGE_ALLOWED_USERS")
+    previous_output = System.get_env("AGENT_IMAGE_OUTPUT_DIR")
+
+    System.put_env("GEMINI_API_KEY", "test")
+    System.put_env("AGENT_IMAGE_ALLOWED_USERS", "admin@agentandbot.com")
+    System.put_env("AGENT_IMAGE_OUTPUT_DIR", tmp_dir)
+
+    try do
+      denied =
+        conn
+        |> post(~p"/api/agents/#{agent.id}/images/generate", %{
+          "actor" => "guest@example.com",
+          "prompt" => "Professional AI worker headshot"
+        })
+        |> json_response(403)
+
+      assert denied["error"] =~ "not allowed"
+
+      generated =
+        conn
+        |> post(~p"/api/agents/#{agent.id}/images/generate", %{
+          "actor" => "admin@agentandbot.com",
+          "image_kind" => "headshot",
+          "prompt" => "Professional AI worker headshot"
+        })
+        |> json_response(200)
+
+      assert generated["data"]["image_url"] =~ "/images/generated/agents/#{agent.id}/headshot-"
+
+      cv = conn |> get(~p"/api/agents/#{agent.id}/cv") |> json_response(200)
+      assert cv["data"]["profile"]["headshot_url"] == generated["data"]["image_url"]
+
+      skills = conn |> get(~p"/skills.json") |> json_response(200)
+      names = Enum.map(skills["skills"], & &1["name"])
+      assert "generate_agent_image" in names
+
+      openapi = conn |> get(~p"/api/openapi.json") |> json_response(200)
+      assert Map.has_key?(openapi["paths"], "/api/agents/{id}/images/generate")
+    after
+      restore_env("GEMINI_API_KEY", previous_key)
+      restore_env("AGENT_IMAGE_ALLOWED_USERS", previous_users)
+      restore_env("AGENT_IMAGE_OUTPUT_DIR", previous_output)
+    end
+  end
+
+  @tag :tmp_dir
+  test "users can bring their own Gemini key for one image request", %{
+    conn: conn,
+    agent: agent,
+    tmp_dir: tmp_dir
+  } do
+    previous_key = System.get_env("GEMINI_API_KEY")
+    previous_users = System.get_env("AGENT_IMAGE_ALLOWED_USERS")
+    previous_output = System.get_env("AGENT_IMAGE_OUTPUT_DIR")
+
+    System.delete_env("GEMINI_API_KEY")
+    System.put_env("AGENT_IMAGE_ALLOWED_USERS", "admin@agentandbot.com")
+    System.put_env("AGENT_IMAGE_OUTPUT_DIR", tmp_dir)
+
+    try do
+      generated =
+        conn
+        |> post(~p"/api/agents/#{agent.id}/images/generate", %{
+          "actor" => "admin@agentandbot.com",
+          "provider_api_key" => "test",
+          "image_kind" => "full_body",
+          "prompt" => "Full body AI creator persona"
+        })
+        |> json_response(200)
+
+      assert generated["data"]["image_url"] =~ "/images/generated/agents/#{agent.id}/full_body-"
+      refute inspect(generated) =~ "provider_api_key"
+      refute inspect(generated) =~ "test"
+
+      cv = conn |> get(~p"/api/agents/#{agent.id}/cv") |> json_response(200)
+      assert cv["data"]["profile"]["full_body_url"] == generated["data"]["image_url"]
+    after
+      restore_env("GEMINI_API_KEY", previous_key)
+      restore_env("AGENT_IMAGE_ALLOWED_USERS", previous_users)
+      restore_env("AGENT_IMAGE_OUTPUT_DIR", previous_output)
+    end
+  end
+
+  defp restore_env(key, nil), do: System.delete_env(key)
+  defp restore_env(key, value), do: System.put_env(key, value)
 end

@@ -54,6 +54,13 @@ defmodule GovernanceCore.Personas.Persona do
     field(:last_seen, :naive_datetime)
     field(:logs, {:array, :string}, default: [])
 
+    # CAREER AND PORTABILITY STATS
+    field(:level, :integer, default: 1)
+    field(:xp, :integer, default: 0)
+    field(:achievements, {:array, :string}, default: [])
+    field(:memory_keys_count, :integer, default: 0)
+    field(:deployed_endpoint, :string)
+
     timestamps()
   end
 
@@ -81,7 +88,13 @@ defmodule GovernanceCore.Personas.Persona do
       :agent_card_url,
       :interop_standards,
       :price_monthly,
-      :owner
+      :owner,
+      :level,
+      :xp,
+      :achievements,
+      :memory_keys_count,
+      :deployed_endpoint,
+      :tasks_done
     ])
     |> validate_required([:name, :sub_type, :access_group, :status])
     |> validate_inclusion(:sub_type, ["bot", "human"])

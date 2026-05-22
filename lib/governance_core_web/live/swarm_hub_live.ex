@@ -31,7 +31,13 @@ defmodule GovernanceCoreWeb.SwarmHubLive do
       }
     ]
 
-    {:ok, assign(socket, stats: stats, recent_activity: recent_activity)}
+    {:ok,
+     assign(socket,
+       stats: stats,
+       recent_activity: recent_activity,
+       page_title: "Command Hub",
+       current_path: "/"
+     )}
   end
 
   def render(assigns) do
@@ -178,7 +184,10 @@ defmodule GovernanceCoreWeb.SwarmHubLive do
           </h3>
 
           <div class="flex flex-col gap-3">
-            <button class="btn btn-block btn-lg bg-base-200 hover:bg-base-300 border-base-content/10 flex items-center justify-between gap-4">
+            <.link
+              navigate={~p"/search"}
+              class="btn btn-block btn-lg bg-base-200 hover:bg-base-300 border-base-content/10 flex items-center justify-between gap-4"
+            >
               <div class="flex items-center gap-4">
                 <.icon name="hero-magnifying-glass" class="size-6 opacity-50" />
                 <div class="text-left">
@@ -186,10 +195,13 @@ defmodule GovernanceCoreWeb.SwarmHubLive do
                   <p class="text-[10px] opacity-50">Search for agents, tasks, logs</p>
                 </div>
               </div>
-              <kbd class="kbd kbd-sm opacity-50">⌘K</kbd>
-            </button>
+              <.icon name="hero-chevron-right" class="size-4 opacity-50" />
+            </.link>
 
-            <button class="btn btn-block btn-lg bg-base-200 hover:bg-base-300 border-base-content/10 flex items-center justify-between gap-4">
+            <.link
+              navigate={~p"/agents/new"}
+              class="btn btn-block btn-lg bg-base-200 hover:bg-base-300 border-base-content/10 flex items-center justify-between gap-4"
+            >
               <div class="flex items-center gap-4">
                 <.icon name="hero-plus-circle" class="size-6 opacity-50" />
                 <div class="text-left">
@@ -198,9 +210,12 @@ defmodule GovernanceCoreWeb.SwarmHubLive do
                 </div>
               </div>
               <.icon name="hero-chevron-right" class="size-4 opacity-50" />
-            </button>
+            </.link>
 
-            <button class="btn btn-block btn-lg bg-base-200 hover:bg-base-300 border-base-content/10 flex items-center justify-between gap-4">
+            <.link
+              navigate={~p"/scenarios"}
+              class="btn btn-block btn-lg bg-base-200 hover:bg-base-300 border-base-content/10 flex items-center justify-between gap-4"
+            >
               <div class="flex items-center gap-4">
                 <.icon name="hero-document-plus" class="size-6 opacity-50" />
                 <div class="text-left">
@@ -209,7 +224,7 @@ defmodule GovernanceCoreWeb.SwarmHubLive do
                 </div>
               </div>
               <.icon name="hero-chevron-right" class="size-4 opacity-50" />
-            </button>
+            </.link>
           </div>
         </section>
       </div>

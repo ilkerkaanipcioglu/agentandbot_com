@@ -15,7 +15,12 @@ defmodule GovernanceCoreWeb.FeedLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(filter: "all", filters: @filters, page_title: "AgentAndBot Feed")
+     |> assign(
+       filter: "all",
+       filters: @filters,
+       page_title: "AgentAndBot Feed",
+       current_path: "/feed"
+     )
      |> assign_posts()}
   end
 

@@ -84,25 +84,58 @@ defmodule GovernanceCoreWeb.Layouts do
             navigate={~p"/"}
             class={[
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
-              @current_path == "/" && "bg-primary text-primary-content hover:bg-primary/90"
+              active_path?(@current_path, "/") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
             ]}
           >
             <.icon name="hero-squares-2x2" class="size-5" /> <span>Command Hub</span>
           </.link>
           <.link
+            navigate={~p"/search"}
+            class={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
+              active_path?(@current_path, "/search") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
+            ]}
+          >
+            <.icon name="hero-magnifying-glass" class="size-5" /> <span>Search</span>
+          </.link>
+          <.link
             navigate={~p"/personas"}
             class={[
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
-              @current_path == "/personas" && "bg-primary text-primary-content hover:bg-primary/90"
+              active_path?(@current_path, ["/agents", "/personas"]) &&
+                "bg-primary text-primary-content hover:bg-primary/90"
             ]}
           >
             <.icon name="hero-user-group" class="size-5" /> <span>Personas</span>
           </.link>
           <.link
+            navigate={~p"/tools"}
+            class={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
+              active_path?(@current_path, "/tools") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
+            ]}
+          >
+            <.icon name="hero-wrench-screwdriver" class="size-5" /> <span>Tool Directory</span>
+          </.link>
+          <.link
+            navigate={~p"/feed"}
+            class={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
+              active_path?(@current_path, "/feed") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
+            ]}
+          >
+            <.icon name="hero-newspaper" class="size-5" /> <span>Feed</span>
+          </.link>
+          <.link
             navigate={~p"/scenarios"}
             class={[
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
-              @current_path == "/scenarios" && "bg-primary text-primary-content hover:bg-primary/90"
+              active_path?(@current_path, "/scenarios") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
             ]}
           >
             <.icon name="hero-rectangle-stack" class="size-5" /> <span>Scenarios</span>
@@ -115,10 +148,21 @@ defmodule GovernanceCoreWeb.Layouts do
             navigate={~p"/governance"}
             class={[
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
-              @current_path == "/governance" && "bg-primary text-primary-content hover:bg-primary/90"
+              active_path?(@current_path, "/governance") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
             ]}
           >
             <.icon name="hero-wallet" class="size-5" /> <span>Wallet & AP2</span>
+          </.link>
+          <.link
+            navigate={~p"/payment/dashboard"}
+            class={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
+              active_path?(@current_path, "/payment") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
+            ]}
+          >
+            <.icon name="hero-chart-bar-square" class="size-5" /> <span>Payments</span>
           </.link>
         </nav>
         <%!-- FOOTER NAV --%>
@@ -152,18 +196,7 @@ defmodule GovernanceCoreWeb.Layouts do
         <%!-- TOP HEADER (Page Specific Info) --%>
         <header class="h-16 flex-none border-b border-base-content/5 flex items-center justify-between px-8 bg-base-100/50 backdrop-blur-md sticky top-0 z-10">
           <h2 class="text-lg font-bold tracking-tight">
-            <%= case @current_path do %>
-              <% "/" -> %>
-                Dashboard
-              <% "/personas" -> %>
-                Persona Directory
-              <% "/scenarios" -> %>
-                Active Scenarios
-              <% "/governance" -> %>
-                Governance & Wallet
-              <% _ -> %>
-                Swarm OS
-            <% end %>
+            {page_heading(assigns)}
           </h2>
 
           <div class="flex items-center gap-4">
@@ -182,8 +215,14 @@ defmodule GovernanceCoreWeb.Layouts do
           </div>
         </header>
         <%!-- SCROLLABLE CONTENT --%>
-        <main class="flex-1 overflow-y-auto p-8">
-          <div class="max-w-6xl mx-auto">{render_slot(@inner_block)}</div>
+        <main class="flex-1 overflow-y-auto overflow-x-hidden p-8">
+          <div class="max-w-6xl mx-auto">
+            <%= if Map.has_key?(assigns, :inner_block) do %>
+              {render_slot(@inner_block)}
+            <% else %>
+              {@inner_content}
+            <% end %>
+          </div>
         </main>
       </div>
       <%!-- CHAT DRAWER (Persistent) --%>
@@ -300,4 +339,41 @@ defmodule GovernanceCoreWeb.Layouts do
     </div>
     """
   end
+
+  defp active_path?(current_path, "/"), do: current_path == "/"
+
+  defp active_path?(current_path, prefixes) when is_list(prefixes) do
+    Enum.any?(prefixes, &active_path?(current_path, &1))
+  end
+
+  defp active_path?(current_path, prefix) when is_binary(current_path) do
+    current_path == prefix or String.starts_with?(current_path, prefix <> "/")
+  end
+
+  defp active_path?(_current_path, _prefix), do: false
+
+  defp page_heading(%{page_title: title}) when is_binary(title) and title != "", do: title
+
+  defp page_heading(%{current_path: "/"}), do: "Dashboard"
+
+  defp page_heading(%{current_path: path}) when path in ["/search"], do: "Swarm Search"
+
+  defp page_heading(%{current_path: path}) when path in ["/personas", "/agents"],
+    do: "Persona Directory"
+
+  defp page_heading(%{current_path: path}) when is_binary(path) and path in ["/tools"],
+    do: "Tool Directory"
+
+  defp page_heading(%{current_path: path}) when is_binary(path) and path in ["/feed"], do: "Feed"
+
+  defp page_heading(%{current_path: path}) when is_binary(path) and path in ["/scenarios"],
+    do: "Active Scenarios"
+
+  defp page_heading(%{current_path: path}) when is_binary(path) and path in ["/governance"],
+    do: "Governance & Wallet"
+
+  defp page_heading(%{current_path: path})
+       when is_binary(path) and path in ["/payment/dashboard"], do: "Payment Dashboard"
+
+  defp page_heading(_assigns), do: "Swarm OS"
 end

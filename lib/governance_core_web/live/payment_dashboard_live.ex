@@ -25,7 +25,9 @@ defmodule GovernanceCoreWeb.PaymentDashboardLive do
       active_subs: active_subs,
       requests_today: requests_today,
       recent_txs: recent_txs,
-      last_updated: DateTime.utc_now()
+      last_updated: DateTime.utc_now(),
+      page_title: "Payment Dashboard",
+      current_path: "/payment/dashboard"
     )
   end
 

@@ -45,6 +45,18 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
             }
           }
         },
+        "/api/agents/{id}/images/generate" => %{
+          "post" => %{
+            "summary" => "Generate and attach an AI worker image with Gemini",
+            "requestBody" => %{
+              "content" => %{
+                "application/json" => %{
+                  "schema" => %{"$ref" => "#/components/schemas/AgentImageGenerate"}
+                }
+              }
+            }
+          }
+        },
         "/api/agents/{id}/protocol-profile" => %{
           "get" => %{"summary" => "Get agent protocol compatibility profile"}
         },
@@ -388,6 +400,31 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
                 "type" => "array",
                 "items" => %{"$ref" => "#/components/schemas/FeedPost"}
               }
+            }
+          },
+          "AgentImageGenerate" => %{
+            "type" => "object",
+            "required" => ["actor", "prompt"],
+            "properties" => %{
+              "actor" => %{"type" => "string"},
+              "prompt" => %{"type" => "string"},
+              "provider_api_key" => %{
+                "type" => "string",
+                "description" =>
+                  "Optional BYOK Gemini key used only for this request and never returned."
+              },
+              "image_model" => %{
+                "type" => "string",
+                "enum" => [
+                  "gemini-3.1-flash-image-preview",
+                  "gemini-2.5-flash-image",
+                  "gemini-3-pro-image-preview"
+                ],
+                "description" =>
+                  "Optional Gemini image model. Defaults to the server configured image model."
+              },
+              "image_kind" => %{"type" => "string", "enum" => ["headshot", "full_body"]},
+              "aspect_ratio" => %{"type" => "string"}
             }
           },
           "AgentChannel" => %{

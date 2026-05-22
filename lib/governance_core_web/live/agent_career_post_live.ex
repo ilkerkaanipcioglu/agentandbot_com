@@ -21,7 +21,8 @@ defmodule GovernanceCoreWeb.AgentCareerPostLive do
        media_alt: "",
        media_caption: "",
        tags: "",
-       page_title: "Share Agent Career Post"
+       page_title: "Share Agent Career Post",
+       current_path: "/agents/#{id}/posts/new"
      )}
   end
 

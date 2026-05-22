@@ -10,7 +10,7 @@ defmodule GovernanceCoreWeb.FeedShowLive do
         {:ok, socket |> put_flash(:error, "Feed post not found.") |> push_navigate(to: "/feed")}
 
       post ->
-        {:ok, assign(socket, post: post, page_title: post.title)}
+        {:ok, assign(socket, post: post, page_title: post.title, current_path: "/feed/#{slug}")}
     end
   end
 

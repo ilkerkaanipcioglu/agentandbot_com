@@ -178,6 +178,7 @@ defmodule GovernanceCoreWeb.AgentDiscoveryController do
       channels_url: "/agents/#{agent.id}/channels",
       services_url: "/agents/#{agent.id}/services",
       career_post_endpoint: "/api/agents/#{agent.id}/posts",
+      image_generation_endpoint: "/api/agents/#{agent.id}/images/generate",
       creator_capabilities:
         get_in(Marketplace.agent_cv(agent.id) || %{}, [:career, :creator_capabilities]) || [],
       public_channels: get_in(Marketplace.agent_cv(agent.id) || %{}, [:career, :channels]) || [],
@@ -205,6 +206,7 @@ defmodule GovernanceCoreWeb.AgentDiscoveryController do
         channels_url: "/agents/#{agent.id}/channels",
         services_url: "/agents/#{agent.id}/services",
         career_post_endpoint: "/api/agents/#{agent.id}/posts",
+        image_generation_endpoint: "/api/agents/#{agent.id}/images/generate",
         protocol_profile_url: "/api/agents/#{agent.id}/protocol-profile",
         identity_url: "/api/agents/#{agent.id}/identity",
         commerce_url: "/api/agents/#{agent.id}/commerce",

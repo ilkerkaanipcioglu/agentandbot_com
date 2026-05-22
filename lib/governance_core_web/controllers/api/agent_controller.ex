@@ -2,6 +2,7 @@ defmodule GovernanceCoreWeb.Api.AgentController do
   use GovernanceCoreWeb, :controller
 
   alias GovernanceCore.Agents
+  alias GovernanceCore.AgentImages
   alias GovernanceCore.Marketplace
   alias GovernanceCore.RuntimeCatalog
 
@@ -124,6 +125,58 @@ defmodule GovernanceCoreWeb.Api.AgentController do
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{error: "Validation failed", details: "Check required fields"})
+    end
+  end
+
+  def generate_image(conn, %{"id" => id} = params) do
+    actor =
+      get_req_header(conn, "x-agentandbot-user")
+      |> List.first()
+      |> Kernel.||(Map.get(params, "actor"))
+
+    params = Map.put(params, "actor", actor)
+
+    case AgentImages.generate_agent_image(id, params) do
+      {:ok, payload} ->
+        json(conn, %{data: payload, message: "Agent image generated"})
+
+      {:error, :unauthorized} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "User is not allowed to generate agent images"})
+
+      {:error, :missing_gemini_api_key} ->
+        conn
+        |> put_status(:payment_required)
+        |> json(%{error: "GEMINI_API_KEY is not configured"})
+
+      {:error, :missing_prompt} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Missing prompt"})
+
+      {:error, :invalid_image_kind} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "image_kind must be headshot or full_body"})
+
+      {:error, {:gemini_quota_exceeded, _body}} ->
+        conn
+        |> put_status(:too_many_requests)
+        |> json(%{
+          error:
+            "Gemini quota or rate limit was reached. Try again later or use provider_api_key with another Gemini key."
+        })
+
+      {:error, :agent_not_found} ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Agent not found", id: id})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:bad_gateway)
+        |> json(%{error: "Gemini image generation failed", details: inspect(reason)})
     end
   end
 

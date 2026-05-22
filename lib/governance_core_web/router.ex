@@ -18,6 +18,7 @@ defmodule GovernanceCoreWeb.Router do
     pipe_through(:browser)
 
     live("/", SwarmHubLive)
+    live("/search", SwarmSearchLive)
     live("/agents", PersonaDirectoryLive)
     live("/personas", PersonaDirectoryLive)
     live("/tools", ProviderAppDirectoryLive)
@@ -47,7 +48,10 @@ defmodule GovernanceCoreWeb.Router do
     live("/agents/:id/portfolio", AgentDetailLive, :portfolio)
     live("/agents/:id/channels", AgentDetailLive, :channels)
     live("/agents/:id/services", AgentDetailLive, :services)
+    live("/agents/:id/deploy", AgentDetailLive, :deploy)
+    live("/agents/:id/brain_sync", AgentDetailLive, :brain_sync)
     live("/agents/:id/posts/new", AgentCareerPostLive)
+    live("/agents/:id/images/generate", AgentImageGeneratorLive)
   end
 
   # Payment Dashboard
@@ -92,6 +96,7 @@ defmodule GovernanceCoreWeb.Router do
     get("/agents/:id/channels", Api.AgentController, :channels)
     get("/agents/:id/services", Api.AgentController, :services)
     post("/agents/:id/posts", Api.AgentController, :create_post)
+    post("/agents/:id/images/generate", Api.AgentController, :generate_image)
     get("/agents/:id/protocol-profile", Api.AgentController, :protocol_profile)
     get("/agents/:id/identity", Api.AgentController, :identity)
     get("/agents/:id/commerce", Api.AgentController, :commerce)

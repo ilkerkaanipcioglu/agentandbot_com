@@ -40,10 +40,15 @@ defmodule GovernanceCore.Agents do
   def search(query) when query in ["", nil], do: list_agents()
 
   def search(query) do
-    q = "%#{query}%"
+    q = "%#{String.downcase(query)}%"
 
     Persona
-    |> where([p], ilike(p.name, ^q) or ilike(p.role, ^q) or ilike(p.description, ^q))
+    |> where(
+      [p],
+      fragment("lower(coalesce(?, '')) LIKE ?", p.name, ^q) or
+        fragment("lower(coalesce(?, '')) LIKE ?", p.role, ^q) or
+        fragment("lower(coalesce(?, '')) LIKE ?", p.description, ^q)
+    )
     |> Repo.all()
   end
 

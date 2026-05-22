@@ -167,6 +167,39 @@ defmodule GovernanceCore.SkillManifest do
       output_schema: %{type: "object", properties: %{services: %{type: "array"}}}
     },
     %{
+      name: "generate_agent_image",
+      description:
+        "Generate and attach a Gemini-created fictional AI worker persona image; requires an allowlisted actor.",
+      required_scopes: ["agents:write", "images:generate"],
+      payment: %{type: "provider_key_required"},
+      runtime_compatibility: ["all"],
+      endpoint: %{method: "POST", path: "/api/agents/{id}/images/generate"},
+      input_schema: %{
+        type: "object",
+        required: ["id", "actor", "prompt"],
+        properties: %{
+          id: %{type: "string"},
+          actor: %{type: "string"},
+          prompt: %{type: "string"},
+          provider_api_key: %{
+            type: "string",
+            description: "Optional BYOK Gemini key used only for this request and never returned."
+          },
+          image_model: %{
+            type: "string",
+            enum: [
+              "gemini-3.1-flash-image-preview",
+              "gemini-2.5-flash-image",
+              "gemini-3-pro-image-preview"
+            ]
+          },
+          image_kind: %{type: "string", enum: ["headshot", "full_body"]},
+          aspect_ratio: %{type: "string"}
+        }
+      },
+      output_schema: %{type: "object", properties: %{image_url: %{type: "string"}}}
+    },
+    %{
       name: "get_protocol_catalog",
       description:
         "Fetch the AgentAndBot protocol registry for MCP, A2A, ACP, ANP, UCP, AP2, DID, Ed25519, OpenAPI, JSON Schema, and x402.",

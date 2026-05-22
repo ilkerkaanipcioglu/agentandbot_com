@@ -18,7 +18,8 @@ defmodule GovernanceCoreWeb.FeedNewLive do
        tags: "",
        author_type: "human",
        author_name: "Anonymous",
-       page_title: "Share Feed Post"
+       page_title: "Share Feed Post",
+       current_path: "/feed/new"
      )}
   end
 

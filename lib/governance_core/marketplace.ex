@@ -651,38 +651,57 @@ defmodule GovernanceCore.Marketplace do
   end
 
   defp provider_app_rating_summaries do
-    ProviderAppRating
-    |> Repo.all()
-    |> Enum.group_by(& &1.app_id)
-    |> Map.new(fn {app_id, ratings} -> {app_id, rating_summary(ratings)} end)
-  rescue
-    _ -> %{}
+    try do
+      ProviderAppRating
+      |> group_by([r], r.app_id)
+      |> select([r], {
+        r.app_id,
+        %{
+          average: avg(r.score),
+          count: count(r.id),
+          human_average:
+            fragment("AVG(CASE WHEN ? = 'human' THEN ? ELSE NULL END)", r.rater_type, r.score),
+          human_count:
+            fragment("COUNT(CASE WHEN ? = 'human' THEN 1 ELSE NULL END)", r.rater_type),
+          agent_average:
+            fragment("AVG(CASE WHEN ? = 'agent' THEN ? ELSE NULL END)", r.rater_type, r.score),
+          agent_count: fragment("COUNT(CASE WHEN ? = 'agent' THEN 1 ELSE NULL END)", r.rater_type)
+        }
+      })
+      |> Repo.all()
+      |> Map.new(fn {app_id, summary} -> {app_id, clean_summary(summary)} end)
+    rescue
+      _ -> %{}
+    end
   end
 
-  defp rating_summary([]), do: empty_rating()
-
-  defp rating_summary(ratings) do
-    human_ratings = Enum.filter(ratings, &(&1.rater_type == "human"))
-    agent_ratings = Enum.filter(ratings, &(&1.rater_type == "agent"))
-
+  defp clean_summary(summary) do
     %{
-      average: average_score(ratings),
-      count: length(ratings),
-      human_average: average_score(human_ratings),
-      human_count: length(human_ratings),
-      agent_average: average_score(agent_ratings),
-      agent_count: length(agent_ratings)
+      average: format_score(summary.average),
+      count: summary.count || 0,
+      human_average: format_score(summary.human_average),
+      human_count: summary.human_count || 0,
+      agent_average: format_score(summary.agent_average),
+      agent_count: summary.agent_count || 0
     }
   end
 
-  defp average_score([]), do: nil
+  defp format_score(nil), do: nil
 
-  defp average_score(ratings) do
-    ratings
-    |> Enum.map(& &1.score)
-    |> Enum.sum()
-    |> Kernel./(length(ratings))
-    |> Float.round(1)
+  defp format_score(value) do
+    cond do
+      is_struct(value, Decimal) ->
+        value |> Decimal.to_float() |> Float.round(1)
+
+      is_float(value) ->
+        Float.round(value, 1)
+
+      is_integer(value) ->
+        (value / 1) |> Float.round(1)
+
+      true ->
+        nil
+    end
   end
 
   defp empty_rating do
@@ -917,6 +936,77 @@ defmodule GovernanceCore.Marketplace do
 
   def get_task(id), do: Repo.get(Task, id) |> Repo.preload([:agent, :events])
 
+  def list_tasks(opts \\ []) do
+    query = Task
+
+    query =
+      case Keyword.get(opts, :agent_id) do
+        nil -> query
+        agent_id -> where(query, [t], t.agent_id == ^agent_id)
+      end
+
+    query =
+      case Keyword.get(opts, :status) do
+        nil -> query
+        status -> where(query, [t], t.status == ^status)
+      end
+
+    query
+    |> order_by([t], desc: t.updated_at)
+    |> Repo.all()
+    |> Repo.preload([:agent, :events])
+  end
+
+  def complete_task_and_reward(task_id, attrs \\ %{}) do
+    case record_event(task_id, "completed", attrs) do
+      {:ok, task} ->
+        # Task completed and escrow released! Let's reward the agent.
+        agent = task.agent
+
+        if agent do
+          new_xp = agent.xp + 50
+          new_level = div(new_xp, 100) + 1
+          new_tasks_done = agent.tasks_done + 1
+          new_achievements = calculate_achievements(new_level, new_tasks_done, agent.achievements)
+
+          case Agents.update_agent(agent, %{
+                 xp: new_xp,
+                 level: new_level,
+                 tasks_done: new_tasks_done,
+                 achievements: new_achievements
+               }) do
+            {:ok, updated_agent} ->
+              # Return task with updated agent preloaded
+              {:ok, %{task | agent: updated_agent}}
+
+            {:error, _reason} ->
+              # Return the task anyway but with log/error
+              {:ok, task}
+          end
+        else
+          {:ok, task}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def calculate_achievements(level, tasks_done, current_achievements) do
+    current_set = MapSet.new(current_achievements || [])
+
+    new_achievements =
+      []
+      |> then(fn list -> if tasks_done >= 1, do: ["İlk Kan" | list], else: list end)
+      |> then(fn list -> if tasks_done >= 5, do: ["Veteran" | list], else: list end)
+      |> then(fn list -> if level >= 3, do: ["Yükselen Yıldız" | list], else: list end)
+      |> then(fn list -> if level >= 5, do: ["Kod Mimarı" | list], else: list end)
+      |> then(fn list -> if level >= 10, do: ["Yapay Zeka Dehası" | list], else: list end)
+
+    MapSet.union(current_set, MapSet.new(new_achievements))
+    |> MapSet.to_list()
+  end
+
   def agent_listing(agent_id) do
     AgentListing
     |> where([l], l.persona_id == ^agent_id and l.status == "published")
@@ -932,7 +1022,7 @@ defmodule GovernanceCore.Marketplace do
   def agent_cv(agent_id) do
     with agent when not is_nil(agent) <- Agents.get_agent(agent_id) do
       listing = agent_listing(agent.id)
-      profile = safe_listing_profile(listing)
+      profile = Map.merge(agent_profile(agent), safe_listing_profile(listing))
       runtime = RuntimeCatalog.get_runtime(agent.runtime_kind || agent.type || "custom_webhook")
 
       standards =
@@ -1040,6 +1130,47 @@ defmodule GovernanceCore.Marketplace do
       |> Feed.create_post()
     else
       nil -> {:error, :agent_not_found}
+    end
+  end
+
+  def update_agent_profile_image(agent_id, image_kind, image_url, generation_metadata \\ %{}) do
+    with agent when not is_nil(agent) <- Agents.get_agent(agent_id),
+         field <- profile_image_field(image_kind) do
+      agent_metadata = agent.metadata || %{}
+      agent_profile = Map.get(agent_metadata, "kadro_profile", %{})
+
+      updated_agent_metadata =
+        agent_metadata
+        |> Map.put("kadro_profile", Map.put(agent_profile, field, image_url))
+        |> Map.put(
+          "image_generation",
+          Map.merge(Map.get(agent_metadata, "image_generation", %{}), %{
+            field => Map.merge(generation_metadata, %{"image_url" => image_url})
+          })
+        )
+
+      {:ok, updated_agent} = Agents.update_agent(agent, %{metadata: updated_agent_metadata})
+
+      if listing = agent_listing(agent_id) do
+        listing_metadata = listing.metadata || %{}
+        profile = Map.get(listing_metadata, "kadro_profile", %{})
+
+        listing
+        |> AgentListing.changeset(%{
+          metadata:
+            Map.put(
+              listing_metadata,
+              "kadro_profile",
+              Map.put(profile, field, image_url)
+            )
+        })
+        |> Repo.update()
+      end
+
+      {:ok, updated_agent}
+    else
+      nil -> {:error, :agent_not_found}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -1529,6 +1660,45 @@ defmodule GovernanceCore.Marketplace do
 
   defp listing_summary(nil), do: nil
   defp listing_summary(%AgentListing{summary: summary}), do: summary
+
+  defp agent_profile(agent) do
+    profile = get_in(agent.metadata || %{}, ["kadro_profile"])
+
+    if is_map(profile) do
+      Map.take(profile, [
+        "p_no",
+        "category",
+        "age",
+        "gender",
+        "country",
+        "city",
+        "profession",
+        "personality",
+        "content",
+        "social",
+        "email",
+        "phone",
+        "telegram",
+        "whatsapp",
+        "height_cm",
+        "weight_kg",
+        "instagram",
+        "tiktok",
+        "linkedin",
+        "youtube",
+        "x",
+        "facebook",
+        "headshot_url",
+        "full_body_url",
+        "cv_url"
+      ])
+    else
+      %{}
+    end
+  end
+
+  defp profile_image_field("full_body"), do: "full_body_url"
+  defp profile_image_field(_), do: "headshot_url"
 
   defp career_profile(agent, profile, skills) do
     metadata = Map.get(agent.metadata || %{}, "career_profile", %{})
