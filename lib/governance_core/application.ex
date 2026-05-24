@@ -24,7 +24,16 @@ defmodule GovernanceCore.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: GovernanceCore.Supervisor]
-    Supervisor.start_link(children, opts)
+
+    case Supervisor.start_link(children, opts) do
+      {:ok, pid} ->
+        maybe_sync_internal_tools()
+
+        {:ok, pid}
+
+      other ->
+        other
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
@@ -38,6 +47,16 @@ defmodule GovernanceCore.Application do
   defp daily_feed_worker do
     if Application.get_env(:governance_core, :daily_feed_worker, true) do
       GovernanceCore.Feed.DailyDigestWorker
+    end
+  end
+
+  defp maybe_sync_internal_tools do
+    if Application.get_env(:governance_core, :internal_tools_sync, true) do
+      Task.start(fn ->
+        Process.sleep(100)
+        yaml_path = Path.expand("../../ops/internal_tools.example.yml", __DIR__)
+        GovernanceCore.InternalTools.sync_from_yaml(yaml_path)
+      end)
     end
   end
 end

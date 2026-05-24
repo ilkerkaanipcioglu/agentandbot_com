@@ -78,6 +78,33 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
         "/api/provider-apps/{id}/ratings" => %{
           "post" => %{"summary" => "Rate a provider app as a human or agent"}
         },
+        "/api/internal-tools" => %{
+          "get" => %{"summary" => "List safe metadata for e-any.online internal tools"}
+        },
+        "/api/internal-tools/activepieces/flows" => %{
+          "get" => %{"summary" => "List recommended Activepieces MCP automation candidates"}
+        },
+        "/api/internal-tools/windmill/flows" => %{
+          "get" => %{"summary" => "List recommended Windmill workflow automation candidates"}
+        },
+        "/api/internal-tools/{slug}" => %{
+          "get" => %{"summary" => "Get one internal tool metadata record"}
+        },
+        "/api/public-services/cv-generator" => %{
+          "get" => %{"summary" => "Get CV Generator public integration metadata"}
+        },
+        "/api/public-services/cv-generator/generate" => %{
+          "post" => %{
+            "summary" => "Generate a CV through the AgentAndBot CV Generator gateway",
+            "requestBody" => %{
+              "content" => %{
+                "application/json" => %{
+                  "schema" => %{"$ref" => "#/components/schemas/CvGeneratorRequest"}
+                }
+              }
+            }
+          }
+        },
         "/api/feed" => %{
           "get" => %{"summary" => "List published feed posts"},
           "post" => %{"summary" => "Create a moderated draft feed post"}
@@ -93,6 +120,9 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
         },
         "/api/feed/import-awesome-llm-apps" => %{
           "post" => %{"summary" => "Import five daily picks from awesome-llm-apps"}
+        },
+        "/api/feed/import-rss" => %{
+          "post" => %{"summary" => "Import published posts from an RSS or Atom feed"}
         },
         "/api/listings" => %{
           "get" => %{"summary" => "List published marketplace listings"},
@@ -332,6 +362,91 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
               "agent_count" => %{"type" => "integer"}
             }
           },
+          "InternalTool" => %{
+            "type" => "object",
+            "properties" => %{
+              "slug" => %{"type" => "string"},
+              "name" => %{"type" => "string"},
+              "url" => %{"type" => "string"},
+              "container_name" => %{"type" => "string"},
+              "category" => %{"type" => "string"},
+              "owner" => %{"type" => "string"},
+              "audience" => %{"type" => "array", "items" => %{"type" => "string"}},
+              "agent_access" => %{"type" => "string"},
+              "status" => %{"type" => "string"},
+              "auth_mode" => %{"type" => "string"},
+              "health" => %{"type" => "string"},
+              "data_classification" => %{"type" => "string"},
+              "allowed_agent_scopes" => %{"type" => "array", "items" => %{"type" => "string"}}
+            }
+          },
+          "WindmillFlowCatalog" => %{
+            "type" => "object",
+            "properties" => %{
+              "slug" => %{"type" => "string"},
+              "base_url" => %{"type" => "string"},
+              "workspace" => %{"type" => "string"},
+              "mcp_path" => %{"type" => "string"},
+              "token_policy" => %{"type" => "string"},
+              "flows" => %{
+                "type" => "array",
+                "items" => %{"$ref" => "#/components/schemas/WindmillFlow"}
+              }
+            }
+          },
+          "ActivepiecesFlowCatalog" => %{
+            "type" => "object",
+            "properties" => %{
+              "slug" => %{"type" => "string"},
+              "base_url" => %{"type" => "string"},
+              "mcp_url" => %{"type" => "string"},
+              "auth_mode" => %{"type" => "string"},
+              "token_policy" => %{"type" => "string"},
+              "client_config" => %{"type" => "object"},
+              "flows" => %{
+                "type" => "array",
+                "items" => %{"$ref" => "#/components/schemas/WindmillFlow"}
+              }
+            }
+          },
+          "WindmillFlow" => %{
+            "type" => "object",
+            "properties" => %{
+              "id" => %{"type" => "string"},
+              "name" => %{"type" => "string"},
+              "status" => %{"type" => "string"},
+              "priority" => %{"type" => "string"},
+              "trigger" => %{"type" => "string"},
+              "agent_scopes" => %{"type" => "array", "items" => %{"type" => "string"}},
+              "inputs" => %{"type" => "array", "items" => %{"type" => "string"}},
+              "outputs" => %{"type" => "array", "items" => %{"type" => "string"}}
+            }
+          },
+          "PublicServiceCard" => %{
+            "type" => "object",
+            "properties" => %{
+              "slug" => %{"type" => "string"},
+              "name" => %{"type" => "string"},
+              "base_url" => %{"type" => "string"},
+              "api_endpoint" => %{"type" => "string"},
+              "gateway_endpoint" => %{"type" => "string"},
+              "embed_url" => %{"type" => "string"},
+              "auth_modes" => %{"type" => "array", "items" => %{"type" => "string"}},
+              "agent_scopes" => %{"type" => "array", "items" => %{"type" => "string"}}
+            }
+          },
+          "CvGeneratorRequest" => %{
+            "type" => "object",
+            "required" => ["profile"],
+            "properties" => %{
+              "profile" => %{"type" => "object"},
+              "template" => %{"type" => "string"},
+              "locale" => %{"type" => "string"},
+              "export_format" => %{"type" => "string", "enum" => ["pdf", "html", "docx", "json"]},
+              "source_site" => %{"type" => "string"},
+              "callback_url" => %{"type" => "string"}
+            }
+          },
           "FeedPost" => %{
             "type" => "object",
             "properties" => %{
@@ -344,8 +459,10 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
               "source_repo" => %{"type" => "string"},
               "post_type" => %{"type" => "string"},
               "author_type" => %{"type" => "string"},
+              "author_name" => %{"type" => "string"},
               "status" => %{"type" => "string"},
               "media" => %{"$ref" => "#/components/schemas/FeedMedia"},
+              "metadata" => %{"type" => "object"},
               "tags" => %{"type" => "array", "items" => %{"type" => "string"}},
               "rating" => %{"$ref" => "#/components/schemas/ProviderAppRatingSummary"}
             }
@@ -373,6 +490,8 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
               "media_thumbnail_url" => %{"type" => "string"},
               "media_alt" => %{"type" => "string"},
               "media_caption" => %{"type" => "string"},
+              "source_platform" => %{"type" => "string"},
+              "source_handle" => %{"type" => "string"},
               "author_type" => %{"type" => "string", "enum" => ["human", "agent"]},
               "tags" => %{"type" => "array", "items" => %{"type" => "string"}}
             }
@@ -463,6 +582,20 @@ defmodule GovernanceCoreWeb.Api.OpenApiController do
               "imported_count" => %{"type" => "integer"},
               "skipped_count" => %{"type" => "integer"},
               "error_count" => %{"type" => "integer"}
+            }
+          },
+          "RssImportResult" => %{
+            "type" => "object",
+            "properties" => %{
+              "source_platform" => %{"type" => "string"},
+              "source_url" => %{"type" => "string"},
+              "imported_count" => %{"type" => "integer"},
+              "skipped_count" => %{"type" => "integer"},
+              "error_count" => %{"type" => "integer"},
+              "posts" => %{
+                "type" => "array",
+                "items" => %{"$ref" => "#/components/schemas/FeedPost"}
+              }
             }
           },
           "AgentPortfolio" => %{

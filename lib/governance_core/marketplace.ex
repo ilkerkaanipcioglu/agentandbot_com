@@ -1336,6 +1336,85 @@ defmodule GovernanceCore.Marketplace do
     end
   end
 
+  def launch_real_task_runtime(task_id) do
+    case get_task(task_id) do
+      nil ->
+        {:error, :task_not_found}
+
+      task ->
+        agent = task.agent
+
+        if agent && agent.deployed_endpoint && agent.deployed_endpoint != "" do
+          Elixir.Task.start(fn ->
+            endpoint = agent.deployed_endpoint
+            base_url = GovernanceCoreWeb.Endpoint.url()
+            callback_url = "#{base_url}/api/tasks/#{task.id}/callback"
+
+            payload = %{
+              "task_id" => task.id,
+              "title" => task.title,
+              "instructions" => task.instructions,
+              "required_skill" => task.required_skill,
+              "budget_credits" => task.budget_credits,
+              "callback_url" => callback_url,
+              "agent" => %{
+                "id" => agent.id,
+                "name" => agent.name,
+                "level" => agent.level,
+                "xp" => agent.xp
+              }
+            }
+
+            case Req.post(endpoint, json: payload, retry: false) do
+              {:ok, %Req.Response{status: status}} when status in 200..299 ->
+                case record_event(task.id, "working", %{
+                       "message" =>
+                         "Otonom Ajan webhook ile başarıyla tetiklendi. Çalışma başladı.",
+                       "metadata" => %{"webhook_triggered" => true}
+                     }) do
+                  {:ok, updated_task} ->
+                    Phoenix.PubSub.broadcast(
+                      GovernanceCore.PubSub,
+                      "scenario_board",
+                      {:task_updated, updated_task}
+                    )
+
+                  _ ->
+                    :ok
+                end
+
+              other ->
+                error_message =
+                  case other do
+                    {:ok, %Req.Response{status: status}} -> "HTTP Status: #{status}"
+                    {:error, %{message: msg}} -> msg
+                    {:error, reason} -> inspect(reason)
+                  end
+
+                case record_event(task.id, "failed", %{
+                       "message" => "Otonom Ajan tetikleme hatası: #{error_message}",
+                       "metadata" => %{"trigger_error" => error_message}
+                     }) do
+                  {:ok, updated_task} ->
+                    Phoenix.PubSub.broadcast(
+                      GovernanceCore.PubSub,
+                      "scenario_board",
+                      {:task_updated, updated_task}
+                    )
+
+                  _ ->
+                    :ok
+                end
+            end
+          end)
+
+          {:ok, task}
+        else
+          {:error, :no_deployed_endpoint}
+        end
+    end
+  end
+
   def submit_artifact(task_id, attrs) do
     record_event(task_id, "artifact_submitted", attrs)
   end

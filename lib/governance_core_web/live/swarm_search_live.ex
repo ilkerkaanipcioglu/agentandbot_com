@@ -8,6 +8,7 @@ defmodule GovernanceCoreWeb.SwarmSearchLive do
     {:tasks, "Tasks", "hero-rectangle-stack"},
     {:feed, "Feed", "hero-newspaper"},
     {:tools, "Tools", "hero-wrench-screwdriver"},
+    {:internal_tools, "Internal Tools", "hero-server-stack"},
     {:services, "Services", "hero-credit-card"}
   ]
 
@@ -44,7 +45,7 @@ defmodule GovernanceCoreWeb.SwarmSearchLive do
             type="search"
             name="q"
             value={@query}
-            placeholder="Search agents, tasks, feed posts, tools, services..."
+            placeholder="Search agents, tasks, feed posts, tools, internal tools, services..."
             class="input input-bordered w-full h-14 pl-12 text-base bg-base-200 border-base-content/10"
             autofocus
           />

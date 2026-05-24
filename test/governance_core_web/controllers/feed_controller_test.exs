@@ -19,6 +19,19 @@ defmodule GovernanceCoreWeb.FeedControllerTest do
   * [Agentic RAG with Reasoning](rag_tutorials/agentic_rag_reasoning) - Agentic retrieval
   """
 
+  @rss """
+  <rss version="2.0">
+    <channel>
+      <title>External News</title>
+      <item>
+        <title>RSS Agent Dispatch</title>
+        <link>https://example.com/rss-agent-dispatch</link>
+        <description><![CDATA[An imported RSS item for humans and agents.]]></description>
+      </item>
+    </channel>
+  </rss>
+  """
+
   test "feed API hides drafts and exposes published daily picks", %{conn: conn} do
     {:ok, _draft} = Feed.create_post(%{"title" => "Hidden draft"})
     {:ok, result} = Feed.import_awesome_llm_apps(readme: @readme)
@@ -52,6 +65,74 @@ defmodule GovernanceCoreWeb.FeedControllerTest do
 
     assert published["data"]["status"] == "published"
     assert published["data"]["published_at"]
+  end
+
+  test "feed API can filter human and agent posts", %{conn: conn} do
+    {:ok, human_post} =
+      Feed.create_post(%{
+        "title" => "Human draft signal",
+        "author_type" => "human",
+        "author_name" => "Human Writer"
+      })
+
+    {:ok, agent_post} =
+      Feed.create_post(%{
+        "title" => "Agent draft signal",
+        "author_type" => "agent",
+        "author_name" => "Agent Writer"
+      })
+
+    {:ok, _} = Feed.publish_post(human_post.id)
+    {:ok, _} = Feed.publish_post(agent_post.id)
+
+    payload =
+      conn
+      |> get(~p"/api/feed", %{"author_type" => "agent"})
+      |> json_response(200)
+
+    titles = Enum.map(payload["data"], & &1["title"])
+    assert "Agent draft signal" in titles
+    refute "Human draft signal" in titles
+  end
+
+  test "feed posts can carry social platform metadata", %{conn: conn} do
+    created =
+      conn
+      |> post(~p"/api/feed", %{
+        "title" => "Pinterest visual note",
+        "author_type" => "agent",
+        "media_type" => "image",
+        "media_url" => "https://example.com/pin.png",
+        "source_platform" => "pinterest",
+        "source_handle" => "@visual-agent"
+      })
+      |> json_response(201)
+
+    assert created["data"]["media"]["type"] == "image"
+    assert created["data"]["metadata"]["source_platform"] == "pinterest"
+    assert created["data"]["metadata"]["source_handle"] == "@visual-agent"
+  end
+
+  test "RSS import endpoint creates published feed posts", %{conn: conn} do
+    imported =
+      conn
+      |> post(~p"/api/feed/import-rss", %{
+        "feed_url" => "https://example.com/feed.xml",
+        "feed_xml" => @rss
+      })
+      |> json_response(200)
+
+    assert imported["data"]["imported_count"] == 1
+    post = List.first(imported["data"]["posts"])
+    assert post["title"] == "RSS Agent Dispatch"
+    assert post["metadata"]["source_platform"] == "rss"
+
+    payload =
+      conn
+      |> get(~p"/api/feed", %{"source_platform" => "rss"})
+      |> json_response(200)
+
+    assert Enum.any?(payload["data"], &(&1["title"] == "RSS Agent Dispatch"))
   end
 
   test "feed reactions and importer endpoint work", %{conn: conn} do
@@ -102,16 +183,19 @@ defmodule GovernanceCoreWeb.FeedControllerTest do
     assert "create_feed_post" in names
     assert "rate_feed_post" in names
     assert "import_daily_awesome_llm_apps" in names
+    assert "import_rss_feed" in names
 
     openapi = conn |> get(~p"/api/openapi.json") |> json_response(200)
     assert Map.has_key?(openapi["paths"], "/api/feed")
     assert Map.has_key?(openapi["paths"], "/api/feed/{id}")
     assert Map.has_key?(openapi["paths"], "/api/feed/import-awesome-llm-apps")
+    assert Map.has_key?(openapi["paths"], "/api/feed/import-rss")
     assert Map.has_key?(openapi["components"]["schemas"], "FeedPost")
     assert Map.has_key?(openapi["components"]["schemas"], "FeedMedia")
     assert Map.has_key?(openapi["components"]["schemas"], "FeedPostCreate")
     assert Map.has_key?(openapi["components"]["schemas"], "FeedReaction")
     assert Map.has_key?(openapi["components"]["schemas"], "DailyImportResult")
+    assert Map.has_key?(openapi["components"]["schemas"], "RssImportResult")
   end
 
   test "feed UI can render image and video posts", %{conn: conn} do

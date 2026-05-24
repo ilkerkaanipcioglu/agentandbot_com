@@ -173,6 +173,7 @@ defmodule GovernanceCoreWeb.ProviderAppDirectoryLive do
           <span class="worker-filter-note">
             Only API/webhook/CLI/SDK/protocol-friendly products by default
           </span>
+          <a href="/tools/internal" class="worker-list-action">Internal tools</a>
           <a href="/agents" class="worker-list-action">Back to agents</a>
         </div>
       </section>

@@ -257,6 +257,116 @@ defmodule GovernanceCoreWeb.Api.AgentController do
     |> json(%{error: "Missing required fields: name, category"})
   end
 
+  def export_dna(conn, %{"id" => id}) do
+    case Agents.get_agent(id) do
+      nil ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Agent not found", id: id})
+
+      agent ->
+        # Get KADRO profile
+        kadro_profile = Map.get(agent.metadata || %{}, "kadro_profile", %{})
+
+        # Build the DNA payload
+        dna = %{
+          "level" => agent.level || 1,
+          "xp" => agent.xp || 0,
+          "achievements" => agent.achievements || [],
+          "memory_keys_count" => agent.memory_keys_count || 0,
+          "interop_standards" => agent.interop_standards || [],
+          "skills" => agent.skills || [],
+          "kadro_profile" => sanitize_private_keys(kadro_profile)
+        }
+
+        json(conn, %{data: dna})
+    end
+  end
+
+  def import_dna(conn, %{"id" => id, "dna" => dna_params}) when is_map(dna_params) do
+    case Agents.get_agent(id) do
+      nil ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{error: "Agent not found", id: id})
+
+      agent ->
+        local_xp = agent.xp || 0
+        local_level = agent.level || 1
+        local_achievements = agent.achievements || []
+        local_skills = agent.skills || []
+        local_memory_keys_count = agent.memory_keys_count || 0
+        local_interop_standards = agent.interop_standards || []
+
+        incoming_xp = Map.get(dna_params, "xp") || Map.get(dna_params, "xp_points") || 0
+        incoming_level = Map.get(dna_params, "level") || 1
+        incoming_achievements = Map.get(dna_params, "achievements") || []
+        incoming_skills = Map.get(dna_params, "skills") || []
+        incoming_memory_keys_count = Map.get(dna_params, "memory_keys_count") || 0
+        incoming_interop_standards = Map.get(dna_params, "interop_standards") || []
+
+        new_xp = max(local_xp, incoming_xp)
+        new_level = max(local_level, incoming_level)
+        new_achievements = Enum.uniq(local_achievements ++ incoming_achievements)
+        new_skills = Enum.uniq(local_skills ++ incoming_skills)
+        new_memory_keys_count = max(local_memory_keys_count, incoming_memory_keys_count)
+        new_interop_standards = Enum.uniq(local_interop_standards ++ incoming_interop_standards)
+
+        # Merge Kadro Profile
+        incoming_kadro_profile = Map.get(dna_params, "kadro_profile") || %{}
+        sanitized_incoming_kadro = sanitize_private_keys(incoming_kadro_profile)
+
+        local_metadata = agent.metadata || %{}
+        local_kadro_profile = Map.get(local_metadata, "kadro_profile") || %{}
+
+        merged_kadro_profile = Map.merge(local_kadro_profile, sanitized_incoming_kadro)
+        new_metadata = Map.put(local_metadata, "kadro_profile", merged_kadro_profile)
+
+        update_attrs = %{
+          xp: new_xp,
+          level: new_level,
+          achievements: new_achievements,
+          skills: new_skills,
+          memory_keys_count: new_memory_keys_count,
+          interop_standards: new_interop_standards,
+          metadata: new_metadata
+        }
+
+        case Agents.update_agent(agent, update_attrs) do
+          {:ok, updated_agent} ->
+            json(conn, %{
+              data: agent_payload(updated_agent),
+              message: "Agent DNA imported successfully using Merge-Upward policy."
+            })
+
+          {:error, changeset} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "Failed to update agent DNA", details: inspect(changeset.errors)})
+        end
+    end
+  end
+
+  def import_dna(conn, _params) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "Missing required key: dna"})
+  end
+
+  defp sanitize_private_keys(map) when is_map(map) do
+    Map.drop(map, [
+      "private_key",
+      "secret",
+      "token",
+      "api_key",
+      "credential",
+      "credentials",
+      "signing_key"
+    ])
+  end
+
+  defp sanitize_private_keys(other), do: other
+
   defp agent_payload(agent) do
     %{
       id: agent.id,
@@ -270,7 +380,8 @@ defmodule GovernanceCoreWeb.Api.AgentController do
         kind: agent.runtime_kind || agent.type,
         provider: agent.runtime_provider || "External",
         hosting_mode: agent.hosting_mode || "affiliate",
-        hosting_url: agent.hosting_url
+        hosting_url: agent.hosting_url,
+        deployed_endpoint: agent.deployed_endpoint
       },
       interop: %{
         protocol: agent.protocol,
@@ -290,7 +401,11 @@ defmodule GovernanceCoreWeb.Api.AgentController do
       career: (Marketplace.agent_cv(agent.id) || %{})[:career],
       skills: agent.skills || [],
       price_monthly: agent.price_monthly,
-      owner: agent.owner
+      owner: agent.owner,
+      level: agent.level,
+      xp: agent.xp,
+      achievements: agent.achievements || [],
+      memory_keys_count: agent.memory_keys_count || 0
     }
   end
 end

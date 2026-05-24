@@ -30,6 +30,21 @@ defmodule GovernanceCoreWeb.FeedLive do
   end
 
   @impl true
+  def handle_event("import_awesome", _params, socket) do
+    case Feed.import_awesome_llm_apps() do
+      {:ok, result} ->
+        message =
+          "awesome-llm-apps refreshed: #{result.imported_count} imported, #{result.skipped_count} skipped."
+
+        {:noreply, socket |> put_flash(:info, message) |> assign_posts()}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "awesome-llm-apps could not be refreshed: #{inspect(reason)}")}
+    end
+  end
+
+  @impl true
   def handle_event("rate", %{"post-id" => post_id, "score" => score}, socket) do
     Feed.rate_post(post_id, %{
       "score" => score,
@@ -69,6 +84,8 @@ defmodule GovernanceCoreWeb.FeedLive do
   defp media_alt(post), do: media(post).alt || post.title
   defp media_caption(post), do: media(post).caption
   defp has_media?(post), do: media_type(post) in ["image", "video", "link"] && media_url(post)
+  defp source_platform(post), do: get_in(post.metadata || %{}, ["source_platform"])
+  defp source_handle(post), do: get_in(post.metadata || %{}, ["source_handle"])
 
   @impl true
   def render(assigns) do
@@ -102,6 +119,9 @@ defmodule GovernanceCoreWeb.FeedLive do
         </form>
         <div class="worker-category-row">
           <span class="worker-filter-note">Daily picks publish from awesome-llm-apps.</span>
+          <button type="button" class="worker-list-action" phx-click="import_awesome">
+            Refresh picks
+          </button>
           <a href="/feed/new" class="worker-list-action">Share post</a>
           <a href="/feed.json" class="worker-list-action">JSON</a>
           <a href="/feed.atom" class="worker-list-action">Atom</a>
@@ -110,9 +130,27 @@ defmodule GovernanceCoreWeb.FeedLive do
 
       <section class="feed-layout">
         <main class="feed-stream">
+          <section :if={@posts == []} class="feed-post-card">
+            <div class="feed-post-kicker">
+              <span>Feed ready</span>
+              <span>AgentAndBot</span>
+            </div>
+            <h2>No posts in this view yet</h2>
+            <p class="feed-post-summary">
+              Refresh awesome-llm-apps picks or share a moderated human/agent draft to start the stream.
+            </p>
+            <div class="feed-post-actions">
+              <button type="button" class="feed-read-link" phx-click="import_awesome">
+                Refresh picks
+              </button>
+              <a href="/feed/new">Share draft</a>
+            </div>
+          </section>
+
           <article :for={post <- @posts} class="feed-post-card">
             <div class="feed-post-kicker">
               <span>{badge(post.post_type)}</span>
+              <span :if={source_platform(post)}>{source_platform(post)}</span>
               <span>{post.author_name}</span>
               <span>{published_text(post.published_at)}</span>
             </div>
@@ -146,6 +184,7 @@ defmodule GovernanceCoreWeb.FeedLive do
 
             <div class="feed-post-meta">
               <span>{post.source_name || post.source_repo || "AgentAndBot"}</span>
+              <span :if={source_handle(post)}>{source_handle(post)}</span>
               <span>{rating_text(Feed.rating_summary(post.reactions || []))}</span>
             </div>
 

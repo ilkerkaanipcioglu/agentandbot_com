@@ -121,6 +121,16 @@ defmodule GovernanceCoreWeb.Layouts do
             <.icon name="hero-wrench-screwdriver" class="size-5" /> <span>Tool Directory</span>
           </.link>
           <.link
+            navigate={~p"/tools/internal"}
+            class={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
+              active_path?(@current_path, "/tools/internal") &&
+                "bg-primary text-primary-content hover:bg-primary/90"
+            ]}
+          >
+            <.icon name="hero-server-stack" class="size-5" /> <span>Internal Tools</span>
+          </.link>
+          <.link
             navigate={~p"/feed"}
             class={[
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
@@ -363,6 +373,9 @@ defmodule GovernanceCoreWeb.Layouts do
 
   defp page_heading(%{current_path: path}) when is_binary(path) and path in ["/tools"],
     do: "Tool Directory"
+
+  defp page_heading(%{current_path: path}) when is_binary(path) and path in ["/tools/internal"],
+    do: "Internal Tools"
 
   defp page_heading(%{current_path: path}) when is_binary(path) and path in ["/feed"], do: "Feed"
 

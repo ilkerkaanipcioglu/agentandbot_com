@@ -11,6 +11,10 @@ defmodule GovernanceCoreWeb.ScenarioBoardLive do
     # If database has no tasks, seed beautiful real tasks for existing personas
     seed_demo_tasks_if_empty()
 
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(GovernanceCore.PubSub, "scenario_board")
+    end
+
     # Load tasks and active user credits
     tasks = Marketplace.list_tasks()
     credits = Marketplace.available_credits("local_user")
@@ -46,27 +50,53 @@ defmodule GovernanceCoreWeb.ScenarioBoardLive do
   end
 
   def handle_event("launch_agent", %{"id" => task_id}, socket) do
-    case Marketplace.record_event(task_id, "working", %{message: "Ajan göreve başladı."}) do
-      {:ok, task} ->
-        # Refresh tasks
-        tasks = Marketplace.list_tasks()
+    task = Marketplace.get_task(task_id)
+    agent = task.agent
 
-        # Start log streaming timer
-        Process.send_after(self(), {:stream_log, task.id, 1}, 800)
+    if agent && agent.deployed_endpoint && agent.deployed_endpoint != "" do
+      case Marketplace.launch_real_task_runtime(task.id) do
+        {:ok, updated_task} ->
+          {:noreply,
+           assign(socket,
+             tasks: Marketplace.list_tasks(),
+             selected_task: updated_task,
+             console_logs: [
+               "[SYSTEM] Webhook trigger payload dispatched asynchronously to #{agent.deployed_endpoint}...",
+               "[SYSTEM] Awaiting real task runtime webhook callback..."
+             ]
+           )}
 
-        {:noreply,
-         assign(socket,
-           tasks: tasks,
-           selected_task: task,
-           console_logs: [
-             "[SYSTEM] Sandbox container provisioning started...",
-             "[SYSTEM] Agent connected to runtime shell."
-           ],
-           simulation_step: 1
-         )}
+        {:error, reason} ->
+          error_msg = inspect(reason)
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Ajan başlatılamadı.")}
+          {:noreply,
+           put_flash(socket, :error, "Real agent execution failed to launch: #{error_msg}")}
+      end
+    else
+      case Marketplace.record_event(task_id, "working", %{
+             message: "Ajan göreve başladı (Demo Modu)."
+           }) do
+        {:ok, task} ->
+          # Refresh tasks
+          tasks = Marketplace.list_tasks()
+
+          # Start log streaming timer
+          Process.send_after(self(), {:stream_log, task.id, 1}, 800)
+
+          {:noreply,
+           assign(socket,
+             tasks: tasks,
+             selected_task: task,
+             console_logs: [
+               "[SYSTEM] Sandbox container provisioning started...",
+               "[SYSTEM] Agent connected to runtime shell."
+             ],
+             simulation_step: 1
+           )}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Ajan başlatılamadı.")}
+      end
     end
   end
 
@@ -255,6 +285,34 @@ defmodule GovernanceCoreWeb.ScenarioBoardLive do
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_info({:task_updated, %{id: task_id} = updated_task}, socket) do
+    tasks = Marketplace.list_tasks()
+
+    socket =
+      if socket.assigns.selected_task && socket.assigns.selected_task.id == task_id do
+        # Build logs list from all events on the task
+        events = updated_task.events || []
+
+        logs =
+          events
+          |> Enum.sort_by(& &1.inserted_at)
+          |> Enum.map(fn event ->
+            cond do
+              event.event_type == "working" -> "[SYSTEM] #{event.message}"
+              event.event_type == "completed" -> "[SYSTEM] #{event.message}"
+              event.event_type == "failed" -> "[ERROR] #{event.message}"
+              true -> "[AJAN] #{event.message}"
+            end
+          end)
+
+        assign(socket, selected_task: updated_task, console_logs: logs)
+      else
+        socket
+      end
+
+    {:noreply, assign(socket, tasks: tasks, credits: Marketplace.available_credits("local_user"))}
   end
 
   def handle_info(_, socket), do: {:noreply, socket}

@@ -22,6 +22,23 @@ defmodule GovernanceCore.Payment.Payments do
     |> Repo.insert()
   end
 
+  def upsert_service(attrs) do
+    attrs =
+      attrs
+      |> stringify_keys()
+      |> Map.put_new("active", true)
+
+    case get_service_by_slug(attrs["slug"]) do
+      nil ->
+        create_service(attrs)
+
+      service ->
+        service
+        |> Service.changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
   # --- Subscriptions ---
 
   def get_subscription_by_api_key(api_key) do
@@ -109,5 +126,9 @@ defmodule GovernanceCore.Payment.Payments do
       select: count(l.id)
     )
     |> Repo.one()
+  end
+
+  defp stringify_keys(map) when is_map(map) do
+    Map.new(map, fn {key, value} -> {to_string(key), value} end)
   end
 end

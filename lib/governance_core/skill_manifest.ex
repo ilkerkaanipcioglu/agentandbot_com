@@ -522,6 +522,8 @@ defmodule GovernanceCore.SkillManifest do
           media_thumbnail_url: %{type: "string"},
           media_alt: %{type: "string"},
           media_caption: %{type: "string"},
+          source_platform: %{type: "string"},
+          source_handle: %{type: "string"},
           tags: %{type: "array"},
           author_type: %{type: "string", enum: ["human", "agent"]}
         }
@@ -556,6 +558,95 @@ defmodule GovernanceCore.SkillManifest do
       endpoint: %{method: "POST", path: "/api/feed/import-awesome-llm-apps"},
       input_schema: %{type: "object", properties: %{readme: %{type: "string"}}},
       output_schema: %{type: "object", properties: %{imported_count: %{type: "integer"}}}
+    },
+    %{
+      name: "import_rss_feed",
+      description: "Import posts from an RSS or Atom feed into the AgentAndBot feed.",
+      required_scopes: ["feed:write"],
+      payment: %{type: "free"},
+      runtime_compatibility: ["all"],
+      endpoint: %{method: "POST", path: "/api/feed/import-rss"},
+      input_schema: %{
+        type: "object",
+        properties: %{
+          feed_url: %{type: "string"},
+          feed_xml: %{type: "string"},
+          limit: %{type: "integer"}
+        }
+      },
+      output_schema: %{type: "object", properties: %{imported_count: %{type: "integer"}}}
+    },
+    %{
+      name: "search_internal_tools",
+      description:
+        "List safe metadata for e-any.online internal tools. Credentials are never returned.",
+      required_scopes: ["tools:read"],
+      payment: %{type: "free"},
+      runtime_compatibility: ["all"],
+      endpoint: %{method: "GET", path: "/api/internal-tools"},
+      input_schema: %{
+        type: "object",
+        properties: %{
+          category: %{type: "string"},
+          agent_access: %{type: "string"}
+        }
+      },
+      output_schema: %{type: "object", properties: %{data: %{type: "array"}}}
+    },
+    %{
+      name: "list_windmill_flows",
+      description:
+        "List recommended Windmill workflow automation candidates for AgentAndBot and e-any.online operations.",
+      required_scopes: ["tools:read", "workflow:read"],
+      payment: %{type: "free"},
+      runtime_compatibility: ["all"],
+      endpoint: %{method: "GET", path: "/api/internal-tools/windmill/flows"},
+      input_schema: %{type: "object", properties: %{}},
+      output_schema: %{type: "object", properties: %{data: %{type: "object"}}}
+    },
+    %{
+      name: "list_activepieces_flows",
+      description:
+        "List recommended Activepieces MCP automation candidates and its OAuth MCP client configuration.",
+      required_scopes: ["tools:read", "workflow:read"],
+      payment: %{type: "free"},
+      runtime_compatibility: ["all"],
+      endpoint: %{method: "GET", path: "/api/internal-tools/activepieces/flows"},
+      input_schema: %{type: "object", properties: %{}},
+      output_schema: %{type: "object", properties: %{data: %{type: "object"}}}
+    },
+    %{
+      name: "get_cv_generator_service",
+      description:
+        "Discover the public-callable CV Generator service metadata and integration options.",
+      required_scopes: ["services:read"],
+      payment: %{type: "free"},
+      runtime_compatibility: ["all"],
+      endpoint: %{method: "GET", path: "/api/public-services/cv-generator"},
+      input_schema: %{type: "object", properties: %{}},
+      output_schema: %{type: "object", properties: %{data: %{type: "object"}}}
+    },
+    %{
+      name: "generate_cv",
+      description:
+        "Generate a CV through the AgentAndBot CV Generator gateway using a paid subscription API key.",
+      required_scopes: ["cv:create"],
+      payment: %{type: "credits", service: "cv-generator"},
+      runtime_compatibility: ["all"],
+      endpoint: %{method: "POST", path: "/api/public-services/cv-generator/generate"},
+      input_schema: %{
+        type: "object",
+        required: ["profile"],
+        properties: %{
+          profile: %{type: "object"},
+          template: %{type: "string"},
+          locale: %{type: "string"},
+          export_format: %{type: "string", enum: ["pdf", "html", "docx", "json"]},
+          source_site: %{type: "string"},
+          callback_url: %{type: "string"}
+        }
+      },
+      output_schema: %{type: "object", properties: %{data: %{type: "object"}}}
     }
   ]
 

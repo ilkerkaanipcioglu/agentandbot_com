@@ -5,7 +5,7 @@ defmodule GovernanceCore.Feed do
 
   import Ecto.Query
 
-  alias GovernanceCore.Feed.{AwesomeLlmAppsImporter, Post, PostReaction}
+  alias GovernanceCore.Feed.{AwesomeLlmAppsImporter, Post, PostReaction, RssImporter}
   alias GovernanceCore.Repo
 
   def list_posts(opts \\ []) do
@@ -14,6 +14,7 @@ defmodule GovernanceCore.Feed do
     author_type = Keyword.get(opts, :author_type, "all")
     author_id = Keyword.get(opts, :author_id, "all")
     context = Keyword.get(opts, :context, "all")
+    source_platform = Keyword.get(opts, :source_platform, "all")
     include_reactions? = Keyword.get(opts, :include_reactions, true)
 
     Post
@@ -22,6 +23,7 @@ defmodule GovernanceCore.Feed do
     |> maybe_filter_author_type(author_type)
     |> maybe_filter_author_id(author_id)
     |> maybe_filter_context(context)
+    |> maybe_filter_source_platform(source_platform)
     |> order_by([p], desc: p.published_at, desc: p.inserted_at)
     |> Repo.all()
     |> maybe_preload_reactions(include_reactions?)
@@ -90,6 +92,10 @@ defmodule GovernanceCore.Feed do
     AwesomeLlmAppsImporter.import_daily(opts)
   end
 
+  def import_rss(opts \\ []) do
+    RssImporter.import(opts)
+  end
+
   def post_payload(%Post{} = post) do
     post = Repo.preload(post, :reactions)
 
@@ -149,6 +155,12 @@ defmodule GovernanceCore.Feed do
     where(query, [p], fragment("json_extract(?, '$.context') = ?", p.metadata, ^value))
   end
 
+  defp maybe_filter_source_platform(query, value) when value in [nil, "", "all"], do: query
+
+  defp maybe_filter_source_platform(query, value) do
+    where(query, [p], fragment("json_extract(?, '$.source_platform') = ?", p.metadata, ^value))
+  end
+
   defp maybe_preload_reactions(posts, true), do: Repo.preload(posts, :reactions)
   defp maybe_preload_reactions(posts, _), do: posts
 
@@ -161,6 +173,7 @@ defmodule GovernanceCore.Feed do
     |> Map.put_new("author_name", default_author_name(author_type))
     |> normalize_tags()
     |> normalize_media()
+    |> normalize_source()
     |> ensure_slug()
   end
 
@@ -252,6 +265,38 @@ defmodule GovernanceCore.Feed do
     |> Enum.reject(fn {_key, value} -> value in [nil, ""] end)
     |> Map.new()
   end
+
+  defp normalize_source(attrs) do
+    platform = Map.get(attrs, "source_platform")
+    handle = Map.get(attrs, "source_handle")
+
+    if platform in [nil, ""] and handle in [nil, ""] do
+      attrs
+    else
+      metadata = Map.get(attrs, "metadata", %{}) || %{}
+
+      source =
+        %{}
+        |> put_if_present("source_platform", normalize_source_platform(platform))
+        |> put_if_present("source_handle", handle)
+
+      Map.put(attrs, "metadata", Map.merge(metadata, source))
+    end
+  end
+
+  defp normalize_source_platform(nil), do: nil
+  defp normalize_source_platform(""), do: nil
+
+  defp normalize_source_platform(value) do
+    value
+    |> to_string()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9_\-]+/, "_")
+    |> String.trim("_")
+  end
+
+  defp put_if_present(map, _key, value) when value in [nil, ""], do: map
+  defp put_if_present(map, key, value), do: Map.put(map, key, value)
 
   defp split_tags(value) do
     value

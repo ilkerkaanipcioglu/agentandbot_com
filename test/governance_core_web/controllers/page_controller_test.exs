@@ -5,6 +5,7 @@ defmodule GovernanceCoreWeb.PageControllerTest do
     conn = get(conn, ~p"/")
     assert html_response(conn, 200) =~ "swarm-hub"
     assert html_response(conn, 200) =~ ~s(href="/tools")
+    assert html_response(conn, 200) =~ ~s(href="/tools/internal")
     assert html_response(conn, 200) =~ ~s(href="/feed")
     assert html_response(conn, 200) =~ ~s(href="/payment/dashboard")
     assert html_response(conn, 200) =~ ~s(href="/search")

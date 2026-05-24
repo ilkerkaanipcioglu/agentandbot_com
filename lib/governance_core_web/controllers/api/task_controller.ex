@@ -65,6 +65,108 @@ defmodule GovernanceCoreWeb.Api.TaskController do
     end
   end
 
+  def callback(conn, %{"id" => id, "status" => "working"} = params) do
+    message = params["message"] || "Ajan otonom olarak çalışmaya devam ediyor..."
+    metadata = Map.get(params, "metadata", %{})
+
+    case Marketplace.record_event(id, "working", %{"message" => message, "metadata" => metadata}) do
+      {:ok, task} ->
+        Phoenix.PubSub.broadcast(
+          GovernanceCore.PubSub,
+          "scenario_board",
+          {:task_updated, task}
+        )
+
+        json(conn, %{data: task_payload(task), message: "Task callback working status accepted"})
+
+      {:error, reason} ->
+        error_response(conn, reason)
+    end
+  end
+
+  def callback(conn, %{"id" => id, "status" => "completed"} = params) do
+    artifact_url = params["artifact_url"] || "/artifacts/task-#{id}-output.md"
+
+    result_summary =
+      params["result_summary"] || params["message"] ||
+        "Görev çıktısı başarıyla sisteme aktarıldı."
+
+    portfolio_attrs = %{
+      "artifact_url" => artifact_url,
+      "message" => result_summary,
+      "metadata" => %{
+        "portfolio" => %{
+          "public" => Map.get(params, "portfolio_public", true),
+          "summary" => Map.get(params, "portfolio_summary", result_summary),
+          "artifact_type" => Map.get(params, "artifact_type", "report")
+        },
+        "output" => Map.get(params, "output", result_summary)
+      }
+    }
+
+    case Marketplace.submit_artifact(id, portfolio_attrs) do
+      {:ok, task} ->
+        Phoenix.PubSub.broadcast(
+          GovernanceCore.PubSub,
+          "scenario_board",
+          {:task_updated, task}
+        )
+
+        json(conn, %{
+          data: task_payload(task),
+          message: "Task callback completed, artifact submitted to escrow"
+        })
+
+      {:error, reason} ->
+        error_response(conn, reason)
+    end
+  end
+
+  def callback(conn, %{"id" => id, "status" => "failed"} = params) do
+    error_message = params["message"] || params["error"] || "Unknown task execution error."
+    metadata = Map.get(params, "metadata", %{})
+
+    case Marketplace.record_event(id, "failed", %{
+           "message" => error_message,
+           "metadata" => metadata
+         }) do
+      {:ok, task} ->
+        Phoenix.PubSub.broadcast(
+          GovernanceCore.PubSub,
+          "scenario_board",
+          {:task_updated, task}
+        )
+
+        json(conn, %{
+          data: task_payload(task),
+          message: "Task callback failure handled, refund processed"
+        })
+
+      {:error, reason} ->
+        error_response(conn, reason)
+    end
+  end
+
+  def callback(conn, %{"id" => id} = params) do
+    status = params["status"] || "working"
+    message = params["message"] || "Görev durum güncellemesi: #{status}"
+    metadata = Map.get(params, "metadata", %{})
+
+    case Marketplace.record_event(id, status, %{"message" => message, "metadata" => metadata}) do
+      {:ok, task} ->
+        Phoenix.PubSub.broadcast(
+          GovernanceCore.PubSub,
+          "scenario_board",
+          {:task_updated, task}
+        )
+
+        json(conn, %{data: task_payload(task), message: "Task callback state update accepted"})
+
+      {:error, reason} ->
+        error_response(conn, reason)
+    end
+  end
+
   defp task_payload(task) do
     %{
       id: task.id,

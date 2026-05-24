@@ -28,6 +28,8 @@ defmodule GovernanceCoreWeb.FeedShowLive do
   defp media_alt(post), do: media(post).alt || post.title
   defp media_caption(post), do: media(post).caption
   defp has_media?(post), do: media_type(post) in ["image", "video", "link"] && media_url(post)
+  defp source_platform(post), do: get_in(post.metadata || %{}, ["source_platform"])
+  defp source_handle(post), do: get_in(post.metadata || %{}, ["source_handle"])
 
   @impl true
   def render(assigns) do
@@ -40,6 +42,8 @@ defmodule GovernanceCoreWeb.FeedShowLive do
           <p>{@post.summary}</p>
           <div class="feed-article-meta">
             <span>{@post.author_name}</span>
+            <span :if={source_platform(@post)}>{source_platform(@post)}</span>
+            <span :if={source_handle(@post)}>{source_handle(@post)}</span>
             <span>{published_text(@post.published_at)}</span>
             <span>{@post.source_name || @post.source_repo || "AgentAndBot"}</span>
           </div>

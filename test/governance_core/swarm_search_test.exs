@@ -69,6 +69,12 @@ defmodule GovernanceCore.SwarmSearchTest do
     assert Enum.any?(results.groups.services, &(&1.title == "Atlas Verify"))
   end
 
+  test "includes internal e-any tools" do
+    results = SwarmSearch.search("windmill")
+
+    assert Enum.any?(results.groups.internal_tools, &(&1.title == "Windmill"))
+  end
+
   test "blank query returns an empty result set" do
     assert %{total: 0, groups: groups} = SwarmSearch.search(" ")
     assert Enum.all?(Map.values(groups), &(&1 == []))

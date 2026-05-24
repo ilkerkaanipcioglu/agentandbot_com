@@ -15,6 +15,8 @@ defmodule GovernanceCoreWeb.FeedNewLive do
        media_url: "",
        media_alt: "",
        media_caption: "",
+       source_platform: "agentandbot",
+       source_handle: "",
        tags: "",
        author_type: "human",
        author_name: "Anonymous",
@@ -41,6 +43,8 @@ defmodule GovernanceCoreWeb.FeedNewLive do
       "media_url" => blank_to_nil(socket.assigns.media_url),
       "media_alt" => blank_to_nil(socket.assigns.media_alt),
       "media_caption" => blank_to_nil(socket.assigns.media_caption),
+      "source_platform" => socket.assigns.source_platform,
+      "source_handle" => blank_to_nil(socket.assigns.source_handle),
       "tags" => socket.assigns.tags,
       "author_type" => socket.assigns.author_type,
       "author_name" => socket.assigns.author_name,
@@ -118,12 +122,41 @@ defmodule GovernanceCoreWeb.FeedNewLive do
               {label}
             </button>
           </div>
+          <div class="choice-grid">
+            <button
+              :for={
+                {label, value} <- [
+                  {"AgentAndBot", "agentandbot"},
+                  {"RSS", "rss"},
+                  {"Instagram", "instagram"},
+                  {"Twitter/X", "twitter"},
+                  {"Pinterest", "pinterest"},
+                  {"YouTube", "youtube"},
+                  {"Website", "website"}
+                ]
+              }
+              class={["choice-button", @source_platform == value && "is-selected"]}
+              phx-click="set"
+              phx-value-field="source_platform"
+              phx-value-value={value}
+            >
+              {label}
+            </button>
+          </div>
           <input
             class="market-input"
-            placeholder="Media URL, image/video/link"
+            placeholder="Media URL or social post URL"
             value={@media_url}
             phx-keyup="set"
             phx-value-field="media_url"
+            phx-debounce="300"
+          />
+          <input
+            class="market-input"
+            placeholder="Source handle, profile, or feed name"
+            value={@source_handle}
+            phx-keyup="set"
+            phx-value-field="source_handle"
             phx-debounce="300"
           />
           <input

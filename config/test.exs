@@ -15,6 +15,7 @@ config :governance_core, GovernanceCore.Repo,
   pool_size: System.schedulers_online() * 2
 
 config :governance_core, :daily_feed_worker, false
+config :governance_core, :internal_tools_sync, false
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

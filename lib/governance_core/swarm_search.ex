@@ -3,7 +3,7 @@ defmodule GovernanceCore.SwarmSearch do
   Unified search across the local AgentAndBot swarm.
   """
 
-  alias GovernanceCore.{Agents, Feed, Marketplace}
+  alias GovernanceCore.{Agents, Feed, InternalTools, Marketplace}
   alias GovernanceCore.Payment.Payments
 
   @default_limit 5
@@ -20,6 +20,7 @@ defmodule GovernanceCore.SwarmSearch do
         tasks: search_tasks(query, limit),
         feed: search_feed(query, limit),
         tools: search_tools(query, limit),
+        internal_tools: search_internal_tools(query, limit),
         services: search_services(query, limit)
       }
 
@@ -32,7 +33,11 @@ defmodule GovernanceCore.SwarmSearch do
   end
 
   defp empty_result(query) do
-    %{query: query, total: 0, groups: %{agents: [], tasks: [], feed: [], tools: [], services: []}}
+    %{
+      query: query,
+      total: 0,
+      groups: %{agents: [], tasks: [], feed: [], tools: [], internal_tools: [], services: []}
+    }
   end
 
   defp search_agents(query, limit) do
@@ -115,6 +120,22 @@ defmodule GovernanceCore.SwarmSearch do
     end)
   end
 
+  defp search_internal_tools(query, limit) do
+    InternalTools.list_tools()
+    |> Enum.filter(&internal_tool_matches?(&1, query))
+    |> Enum.take(limit)
+    |> Enum.map(fn tool ->
+      %{
+        type: :internal_tool,
+        title: tool.name,
+        subtitle: Map.get(tool, :notes) || tool.url || "Internal e-any.online tool",
+        url: "/tools/internal",
+        status: tool.status,
+        meta: compact([tool.category, tool.container_name, tool.agent_access])
+      }
+    end)
+  end
+
   defp tool_matches?(app, query) do
     searchable =
       [
@@ -129,6 +150,23 @@ defmodule GovernanceCore.SwarmSearch do
       ]
 
     contains_query?(searchable, query)
+  end
+
+  defp internal_tool_matches?(tool, query) do
+    [
+      tool.name,
+      tool.slug,
+      tool.url,
+      tool.container_name,
+      tool.category,
+      tool.owner,
+      tool.status,
+      tool.health,
+      Map.get(tool, :notes),
+      tool.audience,
+      tool.allowed_agent_scopes
+    ]
+    |> contains_query?(query)
   end
 
   defp matches?(struct, query, fields) do

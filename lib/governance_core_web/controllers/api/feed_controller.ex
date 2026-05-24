@@ -7,7 +7,11 @@ defmodule GovernanceCoreWeb.Api.FeedController do
     posts =
       Feed.list_posts(
         status: Map.get(params, "status", "published"),
-        post_type: Map.get(params, "post_type", "all")
+        post_type: Map.get(params, "post_type", "all"),
+        author_type: Map.get(params, "author_type", "all"),
+        author_id: Map.get(params, "author_id", "all"),
+        context: Map.get(params, "context", "all"),
+        source_platform: Map.get(params, "source_platform", "all")
       )
 
     json(conn, %{data: Enum.map(posts, &Feed.post_payload/1)})
@@ -64,6 +68,31 @@ defmodule GovernanceCoreWeb.Api.FeedController do
     case Feed.import_awesome_llm_apps(opts) do
       {:ok, result} -> json(conn, %{data: result})
       {:error, reason} -> error(conn, :bad_gateway, inspect(reason))
+    end
+  end
+
+  def import_rss(conn, params) do
+    opts =
+      []
+      |> maybe_put_opt(:url, Map.get(params, "feed_url") || Map.get(params, "url"))
+      |> maybe_put_opt(:xml, Map.get(params, "feed_xml") || Map.get(params, "xml"))
+      |> maybe_put_limit(Map.get(params, "limit"))
+
+    case Feed.import_rss(opts) do
+      {:ok, result} -> json(conn, %{data: result})
+      {:error, reason} -> error(conn, :bad_gateway, inspect(reason))
+    end
+  end
+
+  defp maybe_put_opt(opts, _key, value) when value in [nil, ""], do: opts
+  defp maybe_put_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp maybe_put_limit(opts, value) when value in [nil, ""], do: opts
+
+  defp maybe_put_limit(opts, value) do
+    case Integer.parse(to_string(value)) do
+      {limit, _} when limit > 0 -> Keyword.put(opts, :limit, limit)
+      _ -> opts
     end
   end
 

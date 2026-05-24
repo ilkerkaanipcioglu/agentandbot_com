@@ -17,6 +17,8 @@ defmodule GovernanceCore.SkillManifestTest do
     assert "send_agent_message" in names
     assert "create_commerce_intent" in names
     assert "request_payment_mandate" in names
+    assert "list_windmill_flows" in names
+    assert "list_activepieces_flows" in names
     assert Enum.any?(manifest.protocol_registry, &(&1.name == "AP2"))
 
     for skill <- manifest.skills do

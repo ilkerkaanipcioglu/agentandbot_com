@@ -2,6 +2,7 @@
 
 alias GovernanceCore.Repo
 alias GovernanceCore.Payment.Payments
+alias GovernanceCore.PublicServices
 
 IO.puts "[SEEDS] Populating AgentAndBot Core Data..."
 
@@ -22,3 +23,8 @@ case Payments.get_service_by_slug("icon-generator") do
 end
 
 IO.puts "[SEEDS] Payment seeding complete."
+
+case PublicServices.ensure_cv_generator_registered() do
+  {:ok, service} -> IO.puts "[SEEDS] Service ready: #{service.slug}"
+  {:error, reason} -> IO.inspect(reason, label: "[SEEDS] CV Generator error")
+end

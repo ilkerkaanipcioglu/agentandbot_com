@@ -7,6 +7,7 @@
 erl_crash.dump
 *.ez
 /tmp/
+/.mix_tmp/
 governance_core-*.tar
 
 # Asset build outputs
@@ -21,6 +22,17 @@ npm-debug.log
 .env
 *.env
 .env.local
+*.env.*
+
+# Secrets and local infrastructure inventories — keep credentials in a vault, not git
+secrets/
+**/secrets/
+*.secret.*
+*.local.yml
+*.local.yaml
+*.local.json
+*.agekey
+*.kdbx
 
 # SQLite local database files
 *.db
