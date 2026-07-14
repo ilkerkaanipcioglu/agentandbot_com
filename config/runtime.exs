@@ -41,28 +41,30 @@ end
   config :governance_core, GovernanceCoreWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
-config :governance_core, :llm,
-  default_provider: String.to_atom(System.get_env("LLM_PROVIDER", "ollama")),
-  summarize_with_llm: System.get_env("LLM_SUMMARIZE") == "true",
-  providers: %{
-    ollama: %{
-      base_url: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434"),
-      model: System.get_env("OLLAMA_MODEL", "llama3"),
-      receive_timeout: String.to_integer(System.get_env("OLLAMA_TIMEOUT", "60000"))
-    },
-    openai: %{
-      base_url: System.get_env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-      model: System.get_env("OPENAI_MODEL", "gpt-4o-mini"),
-      api_key: {:system, "OPENAI_API_KEY"},
-      receive_timeout: String.to_integer(System.get_env("OPENAI_TIMEOUT", "60000"))
-    },
-    anthropic: %{
-      base_url: System.get_env("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
-      model: System.get_env("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-      api_key: {:system, "ANTHROPIC_API_KEY"},
-      receive_timeout: String.to_integer(System.get_env("ANTHROPIC_TIMEOUT", "60000"))
+if config_env() in [:dev, :prod] do
+  config :governance_core, :llm,
+    default_provider: String.to_atom(System.get_env("LLM_PROVIDER", "ollama")),
+    summarize_with_llm: System.get_env("LLM_SUMMARIZE") == "true",
+    providers: %{
+      ollama: %{
+        base_url: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434"),
+        model: System.get_env("OLLAMA_MODEL", "llama3"),
+        receive_timeout: String.to_integer(System.get_env("OLLAMA_TIMEOUT", "60000"))
+      },
+      openai: %{
+        base_url: System.get_env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        model: System.get_env("OPENAI_MODEL", "gpt-4o-mini"),
+        api_key: {:system, "OPENAI_API_KEY"},
+        receive_timeout: String.to_integer(System.get_env("OPENAI_TIMEOUT", "60000"))
+      },
+      anthropic: %{
+        base_url: System.get_env("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
+        model: System.get_env("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+        api_key: {:system, "ANTHROPIC_API_KEY"},
+        receive_timeout: String.to_integer(System.get_env("ANTHROPIC_TIMEOUT", "60000"))
+      }
     }
-  }
+end
 
 if config_env() == :prod do
   database_url =
