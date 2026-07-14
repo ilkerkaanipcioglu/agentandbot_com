@@ -176,6 +176,11 @@ defmodule GovernanceCoreWeb.Router do
     post("/a2a/agents/:agent_id/tasks", Api.A2AController, :create_task)
     post("/a2a/agents/:agent_id/tasks/:task_id/cancel", Api.A2AController, :cancel_task)
     post("/a2a/agents/:agent_id/message", Api.A2AController, :send_message)
+
+    # LLM Provider Status
+    get("/llm/providers", Api.LLMController, :providers)
+    get("/llm/status", Api.LLMController, :status)
+    post("/llm/chat", Api.LLMController, :chat)
   end
 
   scope "/api/v1", GovernanceCoreWeb do
