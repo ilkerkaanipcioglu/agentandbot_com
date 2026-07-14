@@ -12,6 +12,11 @@ defmodule GovernanceCoreWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(GovernanceCoreWeb.Plugs.TokenAuth)
+  end
+
+  pipeline :webhook do
+    plug(:accepts, ["json"])
   end
 
   scope "/", GovernanceCoreWeb do
@@ -33,8 +38,12 @@ defmodule GovernanceCoreWeb.Router do
     live("/listings/:id/clone", ListingNewLive, :clone)
     live("/listings/:id/configure", ListingConfigureLive)
     live("/scenarios", ScenarioBoardLive)
+    live("/rooms", RoomLive, :index)
+    live("/rooms/:id", RoomLive, :show)
     live("/governance", GovernanceLive)
+    get("/protocols", AgentDiscoveryController, :protocols_page)
     get("/skills.json", AgentDiscoveryController, :skills)
+    get("/auth.md", AgentDiscoveryController, :auth_md)
 
     # Legacy / Utility
     get("/mcp", AgentDiscoveryController, :mcp_manifest)
@@ -65,6 +74,15 @@ defmodule GovernanceCoreWeb.Router do
     pipe_through(:api)
 
     get("/agent.json", AgentDiscoveryController, :show)
+    get("/agent-learning.json", AgentDiscoveryController, :agent_learning)
+    get("/oauth-protected-resource", AgentDiscoveryController, :oauth_protected_resource)
+    get("/oauth-authorization-server", AgentDiscoveryController, :oauth_authorization_server)
+  end
+
+  scope "/api/webhooks", GovernanceCoreWeb do
+    pipe_through(:webhook)
+
+    post("/telegram/:persona_id", TelegramWebhookController, :handle_update)
   end
 
   scope "/api", GovernanceCoreWeb do
@@ -72,13 +90,23 @@ defmodule GovernanceCoreWeb.Router do
 
     # Agent CRUD
     get("/openapi.json", Api.OpenApiController, :show)
+    get("/ecosystem/registry", Api.EcosystemController, :registry)
     get("/protocols", Api.ProtocolController, :index)
     get("/providers", Api.ProviderController, :index)
     get("/provider-apps", Api.ProviderController, :apps)
     post("/provider-apps/:id/ratings", Api.ProviderController, :rate_app)
     get("/internal-tools", Api.InternalToolController, :index)
     get("/internal-tools/activepieces/flows", Api.InternalToolController, :activepieces_flows)
+
+    post(
+      "/internal-tools/activepieces/flows/:id/run",
+      Api.InternalToolController,
+      :run_activepieces_flow
+    )
+
     get("/internal-tools/windmill/flows", Api.InternalToolController, :windmill_flows)
+    post("/internal-tools/windmill/flows/:id/run", Api.InternalToolController, :run_windmill_flow)
+
     get("/internal-tools/:slug", Api.InternalToolController, :show)
     get("/public-services/cv-generator", Api.PublicServiceController, :cv_generator)
     post("/public-services/cv-generator/generate", Api.PublicServiceController, :generate_cv)
@@ -129,6 +157,25 @@ defmodule GovernanceCoreWeb.Router do
 
     # Comments (from remote — Jules/Comment Monitor)
     post("/comments", CommentController, :create)
+
+    # Rooms (Agent Gateway HTTP API)
+    get("/rooms", Api.RoomController, :index)
+    post("/rooms", Api.RoomController, :create)
+    get("/rooms/:id", Api.RoomController, :show)
+    get("/rooms/:id/agents", Api.RoomController, :agents)
+    post("/rooms/:id/join", Api.RoomController, :join)
+    post("/rooms/:id/leave", Api.RoomController, :leave)
+    post("/rooms/:id/mcp", Api.RoomController, :send_mcp)
+    post("/rooms/:id/human", Api.RoomController, :send_human)
+    post("/rooms/:id/pause", Api.RoomController, :pause)
+    post("/rooms/:id/resume", Api.RoomController, :resume)
+    post("/rooms/:id/approval", Api.RoomController, :request_approval)
+
+    # A2A Protocol Endpoints
+    get("/a2a/.well-known/agent.json", Api.A2AController, :agent_card)
+    post("/a2a/agents/:agent_id/tasks", Api.A2AController, :create_task)
+    post("/a2a/agents/:agent_id/tasks/:task_id/cancel", Api.A2AController, :cancel_task)
+    post("/a2a/agents/:agent_id/message", Api.A2AController, :send_message)
   end
 
   scope "/api/v1", GovernanceCoreWeb do
