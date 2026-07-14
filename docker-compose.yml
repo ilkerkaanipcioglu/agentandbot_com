@@ -1,20 +1,36 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: governance_core_db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: governance_core_dev
+  governance_core:
+    image: ghcr.io/ilkerkaanipcioglu/governance-core:latest
+    container_name: govcore
+    restart: unless-stopped
     ports:
-      - "5433:5432"
+      - "4000:4000"
+    env_file:
+      - .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - govcore_data:/opt/app/data
+    networks:
+      - proxy-network
+      - internal-network
+
+  kadro_platform:
+    image: ghcr.io/ilkerkaanipcioglu/kadro-platform:latest
+    container_name: kadro
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - kadro_data:/app/data
+    networks:
+      - proxy-network
+      - internal-network
+
+networks:
+  proxy-network:
+    external: true
+  internal-network:
+    external: true
 
 volumes:
-  postgres_data:
+  govcore_data:
+  kadro_data:
