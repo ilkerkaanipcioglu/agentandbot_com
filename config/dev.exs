@@ -82,3 +82,31 @@ config :phoenix_live_view,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+# Hermes Orchestrator Mock Adapters for Local Dev
+config :governance_core,
+  docker_adapter: GovernanceCore.Docker.Mock,
+  telegram_adapter: GovernanceCore.TelegramProxy.Mock,
+  idle_timeout_ms: :timer.seconds(10)
+
+config :governance_core, :llm,
+  default_provider: :ollama,
+  providers: %{
+    ollama: %{
+      base_url: "http://localhost:11434",
+      model: "llama3",
+      receive_timeout: 60_000
+    },
+    openai: %{
+      base_url: "https://api.openai.com/v1",
+      model: "gpt-4o-mini",
+      api_key: {:system, "OPENAI_API_KEY"},
+      receive_timeout: 60_000
+    },
+    anthropic: %{
+      base_url: "https://api.anthropic.com",
+      model: "claude-sonnet-4-20250514",
+      api_key: {:system, "ANTHROPIC_API_KEY"},
+      receive_timeout: 60_000
+    }
+  }
