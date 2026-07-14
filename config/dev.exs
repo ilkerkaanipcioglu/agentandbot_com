@@ -91,6 +91,7 @@ config :governance_core,
 
 config :governance_core, :llm,
   default_provider: :ollama,
+  summarize_with_llm: false,
   providers: %{
     ollama: %{
       base_url: "http://localhost:11434",
