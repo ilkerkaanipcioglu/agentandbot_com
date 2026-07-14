@@ -12,6 +12,7 @@ defmodule GovernanceCoreWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(GovernanceCoreWeb.Plugs.RateLimit, max_requests: 120, window_seconds: 60)
     plug(GovernanceCoreWeb.Plugs.TokenAuth)
   end
 
@@ -181,6 +182,18 @@ defmodule GovernanceCoreWeb.Router do
     get("/llm/providers", Api.LLMController, :providers)
     get("/llm/status", Api.LLMController, :status)
     post("/llm/chat", Api.LLMController, :chat)
+  end
+
+  pipeline :health do
+    plug(:accepts, ["json"])
+  end
+
+  scope "/health", GovernanceCoreWeb do
+    pipe_through(:health)
+
+    get("/", HealthController, :check)
+    get("/live", HealthController, :live)
+    get("/ready", HealthController, :ready)
   end
 
   scope "/api/v1", GovernanceCoreWeb do

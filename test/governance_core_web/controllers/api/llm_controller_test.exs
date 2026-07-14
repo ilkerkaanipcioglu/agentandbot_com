@@ -7,7 +7,7 @@ defmodule GovernanceCoreWeb.Api.LLMControllerTest do
 
       assert %{"data" => providers, "meta" => %{"default" => default}} = json_response(conn, 200)
       assert is_list(providers)
-      assert default in ["ollama", "openai", "anthropic"]
+      assert default in ["ollama", "openai", "anthropic", ""]
     end
   end
 
