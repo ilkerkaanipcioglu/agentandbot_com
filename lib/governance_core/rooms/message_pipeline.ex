@@ -101,6 +101,9 @@ defmodule GovernanceCore.Rooms.MessagePipeline do
       })
     end
 
+    # Forward to LRP event bus if available
+    GovernanceCore.LRP.EventBridge.forward_event(updated_msg)
+
     # Pass the updated message to batcher
     msg
     |> Message.update_data(fn _ -> updated_msg end)
