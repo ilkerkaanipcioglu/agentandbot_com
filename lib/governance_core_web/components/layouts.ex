@@ -42,7 +42,7 @@ defmodule GovernanceCoreWeb.Layouts do
         class="w-64 flex-none border-r border-base-content/5 flex flex-col bg-base-200"
       >
         <div class="p-6 border-b border-base-content/5 flex items-center justify-between">
-          <a href="/" class="text-xl font-black tracking-tight text-primary">swarm.os</a>
+          <a href="/dashboard" class="text-xl font-black tracking-tight text-primary">swarm.os</a>
           <.icon name="hero-command-line" class="size-5 opacity-50" />
         </div>
         <%!-- ENTITY SWITCHER --%>
@@ -81,10 +81,10 @@ defmodule GovernanceCoreWeb.Layouts do
           <div class="text-[10px] font-bold uppercase opacity-40 px-2 mb-2 tracking-widest">Main</div>
 
           <.link
-            navigate={~p"/"}
+            navigate={~p"/dashboard"}
             class={[
               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
-              active_path?(@current_path, "/") &&
+              active_path?(@current_path, "/dashboard") &&
                 "bg-primary text-primary-content hover:bg-primary/90"
             ]}
           >
@@ -150,6 +150,16 @@ defmodule GovernanceCoreWeb.Layouts do
           >
             <.icon name="hero-rectangle-stack" class="size-5" /> <span>Scenarios</span>
           </.link>
+          <.link
+            navigate={~p"/rooms"}
+            class={[
+              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium hover:bg-base-content/5",
+              active_path?(@current_path, ["/rooms", "/rooms/:id"]) &&
+                "bg-primary text-primary-content hover:bg-primary/90"
+            ]}
+          >
+            <.icon name="hero-chat-bubble-left-right" class="size-5" /> <span>Swarm Rooms</span>
+          </.link>
           <div class="text-[10px] font-bold uppercase opacity-40 px-2 mt-8 mb-2 tracking-widest">
             Financials
           </div>
@@ -205,9 +215,7 @@ defmodule GovernanceCoreWeb.Layouts do
       <div class="flex-1 flex flex-col min-w-0 bg-base-100 relative">
         <%!-- TOP HEADER (Page Specific Info) --%>
         <header class="h-16 flex-none border-b border-base-content/5 flex items-center justify-between px-8 bg-base-100/50 backdrop-blur-md sticky top-0 z-10">
-          <h2 class="text-lg font-bold tracking-tight">
-            {page_heading(assigns)}
-          </h2>
+          <h2 class="text-lg font-bold tracking-tight">{page_heading(assigns)}</h2>
 
           <div class="flex items-center gap-4">
             <div class="badge badge-outline border-base-content/10 gap-2 px-3 py-3">
@@ -225,8 +233,19 @@ defmodule GovernanceCoreWeb.Layouts do
           </div>
         </header>
         <%!-- SCROLLABLE CONTENT --%>
-        <main class="flex-1 overflow-y-auto overflow-x-hidden p-8">
-          <div class="max-w-6xl mx-auto">
+        <main class={[
+          "flex-1 min-h-0 flex flex-col",
+          if(@current_path in ["/rooms"] or String.starts_with?(@current_path, "/rooms/"),
+            do: "overflow-hidden",
+            else: "overflow-y-auto overflow-x-hidden p-8"
+          )
+        ]}>
+          <div class={
+            if(@current_path in ["/rooms"] or String.starts_with?(@current_path, "/rooms/"),
+              do: "flex flex-col flex-1 min-h-0 w-full",
+              else: "max-w-6xl mx-auto"
+            )
+          }>
             <%= if Map.has_key?(assigns, :inner_block) do %>
               {render_slot(@inner_block)}
             <% else %>
@@ -364,7 +383,7 @@ defmodule GovernanceCoreWeb.Layouts do
 
   defp page_heading(%{page_title: title}) when is_binary(title) and title != "", do: title
 
-  defp page_heading(%{current_path: "/"}), do: "Dashboard"
+  defp page_heading(%{current_path: "/dashboard"}), do: "Command Hub"
 
   defp page_heading(%{current_path: path}) when path in ["/search"], do: "Swarm Search"
 
@@ -389,4 +408,20 @@ defmodule GovernanceCoreWeb.Layouts do
        when is_binary(path) and path in ["/payment/dashboard"], do: "Payment Dashboard"
 
   defp page_heading(_assigns), do: "Swarm OS"
+
+  @doc """
+  Renders the landing page layout (no sidebar, full-width).
+  """
+  attr(:flash, :map, required: true)
+
+  slot(:inner_block, required: true)
+
+  def landing(assigns) do
+    ~H"""
+    <div class="landing-page">
+      <.flash_group flash={@flash} />
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
 end

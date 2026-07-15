@@ -23,7 +23,8 @@ defmodule GovernanceCoreWeb.Router do
   scope "/", GovernanceCoreWeb do
     pipe_through(:browser)
 
-    live("/", SwarmHubLive)
+    live("/", LandingPageLive, layout: {GovernanceCoreWeb.Layouts, :root})
+    live("/dashboard", SwarmHubLive)
     live("/search", SwarmSearchLive)
     live("/agents", PersonaDirectoryLive)
     live("/personas", PersonaDirectoryLive)
